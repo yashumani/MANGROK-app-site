@@ -28,6 +28,97 @@ export class CloudVault {
   }
   async signOut() { const { error } = await this.client.auth.signOut(); if (error) throw error; }
 
+  async getSession() {
+    if (!this.client) return null;
+    const { data, error } = await this.client.auth.getSession();
+    if (error) throw error;
+    this.user = data.session?.user || null;
+    return data.session || null;
+  }
+  async getAccessToken() { return (await this.getSession())?.access_token || ""; }
+
+  async getAlchemyEntitlement() {
+    if (!this.client || !this.user) return null;
+    const { data, error } = await this.client.rpc("get_alchemy_entitlement");
+    if (!error) return Array.isArray(data) ? data[0] || null : data || null;
+    const fallback = await this.client.from("alchemy_entitlements").select("*").eq("user_id", this.user.id).maybeSingle();
+    if (fallback.error) throw fallback.error;
+    return fallback.data || null;
+  }
+  async runAlchemyGateway({ messages, requestId = globalThis.crypto.randomUUID() }) {
+    if (!this.client || !this.user) throw new Error("Sign in before using the Mangrok subscriber gateway.");
+    const token = await this.getAccessToken();
+    if (!token) throw new Error("Your Mangrok session has expired. Sign in again.");
+    const functionName = safeFunctionName(config().alchemyFunctionName || "alchemy-ai");
+    const endpoint = `${String(config().supabaseUrl).replace(/\/+$/, "")}/functions/v1/${functionName}`;
+    const controller = new AbortController();
+    const timeoutMs = Math.min(120000, Math.max(10000, Number(config().aiGatewayTimeoutMs) || 65000));
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        mode: "cors",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          apikey: config().supabaseAnonKey,
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ messages, requestId })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = payload?.error === "subscription_required"
+          ? "Your Alchemy trial or subscription does not currently allow another server AI run."
+          : payload?.message || payload?.error || `Mangrok AI gateway returned ${response.status}.`;
+        const gatewayError = new Error(String(message));
+        gatewayError.code = payload?.error || `http_${response.status}`;
+        gatewayError.entitlement = payload?.entitlement || null;
+        throw gatewayError;
+      }
+      return payload;
+    } catch (error) {
+      if (error?.name === "AbortError") throw new Error(`Mangrok AI did not respond within ${Math.round(timeoutMs / 1000)} seconds.`);
+      throw error;
+    } finally { clearTimeout(timeout); }
+  }
+  async saveAlchemyExperiment(experiment) {
+    if (!this.client || !this.user) return null;
+    const base = {
+      owner_id: this.user.id,
+      title: String(experiment.title || "Untitled experiment").slice(0, 180),
+      input: experiment.input || {},
+      output: experiment.output || {},
+      provider: String(experiment.provider || "rules").slice(0, 40),
+      model: experiment.model ? String(experiment.model).slice(0, 180) : null
+    };
+    const enhanced = {
+      ...base,
+      request_id: normalizeOptionalUuid(experiment.requestId),
+      duration_ms: Number.isFinite(Number(experiment.durationMs)) ? Math.max(0, Math.round(Number(experiment.durationMs))) : null,
+      entitlement_plan: experiment.entitlementPlan ? String(experiment.entitlementPlan).slice(0, 40) : null,
+      status: "completed"
+    };
+    let result = await this.client.from("alchemy_experiments").insert(enhanced).select().single();
+    if (result.error && /request_id|duration_ms|entitlement_plan|status/i.test(result.error.message || "")) {
+      result = await this.client.from("alchemy_experiments").insert(base).select().single();
+    }
+    if (result.error) throw result.error;
+    return result.data;
+  }
+  async listAlchemyExperiments(limit = 20) {
+    if (!this.client || !this.user) return [];
+    const { data, error } = await this.client.from("alchemy_experiments").select("*").order("created_at", { ascending: false }).limit(Math.min(100, Math.max(1, Number(limit) || 20)));
+    if (error) throw error;
+    return data || [];
+  }
+  async linkAlchemyExperiment(experimentId, recipeId) {
+    if (!this.client || !this.user || !experimentId || !recipeId) return null;
+    const { data, error } = await this.client.from("alchemy_experiments").update({ recipe_id: stripPrefix(recipeId) }).eq("id", experimentId).select().single();
+    if (error) throw error;
+    return data;
+  }
+
   async listRecipes() {
     const { data, error } = await this.client.from("recipes").select("*").order("updated_at", { ascending: false });
     if (error) throw error; return (data || []).map(fromRow);
@@ -136,6 +227,16 @@ export class CloudVault {
     for (const result of [recipes, circles, books, legacy]) if (result.error) throw result.error;
     return { type: "mangrok.cloud-export", version: 1, exportedAt: isoNow(), recipes: recipes.data, circles: circles.data, books: books.data, legacyPlans: legacy.data };
   }
+}
+
+function safeFunctionName(value) {
+  const name = String(value || "alchemy-ai").trim();
+  if (!/^[a-z0-9][a-z0-9-]{0,62}$/i.test(name)) throw new Error("The configured Alchemy function name is invalid.");
+  return name;
+}
+function normalizeOptionalUuid(value) {
+  const text = String(value || "");
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text) ? text : null;
 }
 
 function safeName(name) { return String(name || "file").replace(/[^a-z0-9._-]+/gi, "-").slice(0, 120); }
