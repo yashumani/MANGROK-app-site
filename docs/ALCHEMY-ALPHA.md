@@ -1,7 +1,24 @@
 # Mangrok Alchemy Alpha
 
-Mangrok Alchemy treats a recipe as a formula made from ingredients, equipment, technique, heat, time, and intent. The alpha provides live deterministic feedback, ten browser-stored discovery trials, optional on-device WebLLM refinement, an OpenAI-compatible self-hosted model path, saving to the Vault, and illustrated print-book covers.
+Mangrok Alchemy combines ingredients, equipment, technique, heat, time, servings, and a creative direction into an explainable culinary assessment.
 
-This is an explainable culinary prediction, not a physical simulation. Appliance calibration, pan material, ingredient size, freshness, altitude, and user technique affect the real result. Users must independently verify allergens, storage, and food-safety requirements.
+## Available reasoning modes
 
-The browser trial counter is for product testing only. Paid subscriber entitlements must be enforced server-side before commercial launch.
+- **Instant culinary engine:** local, deterministic, explainable, and always available.
+- **On-device WebLLM:** optional WebGPU model download and browser inference.
+- **Self-hosted model:** an operator- or user-controlled OpenAI-compatible endpoint such as Ollama.
+- **Mangrok subscriber AI:** authenticated and server-metered through the private gateway after production activation.
+
+## Results
+
+A completed experiment includes flavor balance, cookware fit, risks, suggested corrections, predicted cooking stages, culinary science, recipe evolutions, confidence, export, and Save to Vault.
+
+Signed-in users can retain completed experiments in private cloud history once all Alchemy migrations are active.
+
+## Trials
+
+The device-only Alpha counter is a convenience, not a secure paid boundary. Production subscriber usage is enforced by server entitlements and idempotent usage events.
+
+## Safety
+
+Alchemy is a culinary prediction and discovery aid. Actual outcomes depend on appliance calibration, equipment material, ingredient size and freshness, altitude, handling, and user technique. Users must independently verify allergens, doneness, and authoritative food-safety requirements.

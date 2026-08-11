@@ -7,12 +7,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "index.html", "styles.css", "runtime-config.js", "manifest.webmanifest", "sw.js",
   "src/app.js", "src/cloud.js", "src/print.js", "src/kitchen-library.js", "src/kitchen-ui.js",
-  "src/culinary-engine.js", "src/local-ai.js", "src/generated-images.js",
+  "src/culinary-engine.js", "src/local-ai.js", "src/entitlements.js", "src/readiness.js", "src/generated-images.js",
   "assets/generated/hero.svg", "assets/generated/ingredients.svg", "assets/generated/equipment.svg",
   "assets/generated/insights.svg", "assets/generated/evolution.svg",
   "src/alchemy-ui.js",
   "src/print-decor.js", "assets/css/alchemy.css",
-  "supabase/migrations/001_platform.sql", "supabase/migrations/002_alchemy.sql",
+  "supabase/migrations/001_platform.sql", "supabase/migrations/002_alchemy.sql", "supabase/migrations/003_alchemy_production.sql",
   "supabase/functions/alchemy-ai/index.ts", "SECURITY.md"
 ];
 
@@ -52,6 +52,18 @@ if (/[\u{1F300}-\u{1FAFF}]/u.test(`${kitchenUi}\n${kitchenLibrary}`)) {
 }
 for (const symbol of ["⌂", "⌕", "▤", "◇", "◎", "♢", "⚙", "✦", "＋"]) {
   if (html.includes(symbol)) throw new Error(`Symbol-based interface control remains: ${symbol}`);
+}
+
+const runtime = await readFile(path.join(root, "runtime-config.js"), "utf8");
+const serviceWorker = await readFile(path.join(root, "sw.js"), "utf8");
+for (const phrase of ["appVersion", "alchemyFunctionName", "src/readiness.js", "src/entitlements.js"]) {
+  if (!runtime.includes(phrase) && !serviceWorker.includes(phrase)) throw new Error(`Missing production-readiness contract: ${phrase}`);
+}
+if (!/mangrok-v5-production-readiness/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the readiness release.");
+
+const alchemyFunction = await readFile(path.join(root, "supabase/functions/alchemy-ai/index.ts"), "utf8");
+for (const phrase of ["p_request_id", "refund_alchemy_credit", "model_gateway_timeout", "origin_not_allowed"]) {
+  if (!alchemyFunction.includes(phrase)) throw new Error(`Missing Alchemy gateway safety contract: ${phrase}`);
 }
 
 console.log("Mangrok Alchemy static validation passed.");

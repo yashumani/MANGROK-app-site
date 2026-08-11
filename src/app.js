@@ -27,7 +27,8 @@ async function main() {
   switchView(viewMeta[requested] ? requested : "vault", false);
   await handlePublicShare();
   renderAll();
-  registerServiceWorker();
+  await registerServiceWorker();
+  window.dispatchEvent(new CustomEvent("mangrok:app-ready", { detail: appStatus() }));
 }
 
 function bindEvents() {
@@ -65,6 +66,13 @@ function bindEvents() {
   $("#notifications-button").addEventListener("click", openNotifications);
   $$('[data-close]').forEach(button => button.addEventListener("click", () => $(`#${button.dataset.close}`).close()));
   window.addEventListener("mangrok:auth", async () => { await establishMode(true); await loadAll(); renderAll(); });
+  window.addEventListener("mangrok:request-auth-token", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.getAccessToken() : ""));
+  window.addEventListener("mangrok:request-app-status", event => respondToBridge(event, appStatus()));
+  window.addEventListener("mangrok:request-alchemy-entitlement", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.getAlchemyEntitlement() : null));
+  window.addEventListener("mangrok:invoke-alchemy-gateway", event => respondToBridge(event, invokeAlchemyGateway(event.detail)));
+  window.addEventListener("mangrok:save-alchemy-experiment", event => respondToBridge(event, saveAlchemyExperiment(event.detail?.experiment)));
+  window.addEventListener("mangrok:list-alchemy-experiments", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listAlchemyExperiments(event.detail?.limit) : []));
+  window.addEventListener("mangrok:request-print-draft", event => respondToBridge(event, printDraftOptions()));
   window.addEventListener("hashchange", () => { const view = location.hash.slice(1); if (viewMeta[view]) switchView(view, false); });
 }
 
@@ -266,8 +274,9 @@ async function handleCircleAction(event){const edit=event.target.closest("[data-
 function renderSelections(){const items=state.recipes.map(recipe=>`<label class="selection-item"><input type="checkbox" value="${escapeHtml(recipe.id)}"><span>${escapeHtml(recipe.title)}${recipe.secret?" · sealed":""}</span></label>`).join("")||"<p>Add recipes first.</p>";$("#print-recipe-list").innerHTML=items;$("#legacy-recipe-list").innerHTML=items;}
 function selectedRecipes(form,selector){const ids=$$(`${selector} input:checked`,form).map(input=>input.value);return state.recipes.filter(recipe=>ids.includes(recipe.id));}
 async function ensureSecrets(recipes){for(const recipe of recipes.filter(r=>r.secret&&!state.unlockedSecrets.has(r.id))){const pass=prompt(`Passphrase for “${recipe.title}” (Cancel to exclude all secrets)`);if(!pass)throw new Error("Secret printing cancelled.");state.unlockedSecrets.set(recipe.id,await decryptSecret(recipe.secret,pass,recipe.id));}}
-async function bookOptions(requireApproval=false){const form=$("#book-form"),data=new FormData(form),recipes=selectedRecipes(form,"#print-recipe-list"),includeSecrets=Boolean(data.get("includeSecrets"));if(!recipes.length)throw new Error("Select at least one recipe.");if(includeSecrets){if(requireApproval&&!data.get("secretApproval"))throw new Error("Approve irreversible secret printing first.");await ensureSecrets(recipes);}let decorations=[];try{const parsed=JSON.parse(String(data.get("decorations")||"[]"));if(Array.isArray(parsed))decorations=parsed.slice(0,4);}catch{}
-  return{title:String(data.get("title")||"Our Recipes"),dedication:String(data.get("dedication")||""),theme:String(data.get("theme")||"heritage"),decorations,recipes,includeSecrets,secretApprovalAt:includeSecrets&&data.get("secretApproval")?isoNow():null,unlockedSecrets:Object.fromEntries(state.unlockedSecrets)};}
+function printDraftOptions(){const form=$("#book-form"),data=new FormData(form),recipes=selectedRecipes(form,"#print-recipe-list"),includeSecrets=Boolean(data.get("includeSecrets"));let decorations=[];try{const parsed=JSON.parse(String(data.get("decorations")||"[]"));if(Array.isArray(parsed))decorations=parsed.slice(0,4);}catch{}
+  return{title:String(data.get("title")||""),dedication:String(data.get("dedication")||""),theme:String(data.get("theme")||"heritage"),decorations,recipes,includeSecrets,secretApprovalAt:includeSecrets&&data.get("secretApproval")?isoNow():null};}
+async function bookOptions(requireApproval=false){const draft=printDraftOptions();if(!draft.recipes.length)throw new Error("Select at least one recipe.");if(draft.includeSecrets){if(requireApproval&&!draft.secretApprovalAt)throw new Error("Approve irreversible secret printing first.");await ensureSecrets(draft.recipes);}return{...draft,unlockedSecrets:Object.fromEntries(state.unlockedSecrets)};}
 async function updateBookPreview(){const include=$("#book-form").elements.includeSecrets.checked;$("#secret-approval").hidden=!include;const title=$("#book-form").elements.title.value||"Our Family Recipes";const count=$$("#print-recipe-list input:checked").length;$("#book-preview").innerHTML=`<div class="book-cover"><span>Mangrok private edition</span><h3>${escapeHtml(title)}</h3><p>${count?`${count} selected recipe${count===1?"":"s"}`:"Select recipes to preview your book."}</p></div>`;}
 async function printBook(event){event.preventDefault();try{const options=await bookOptions(true),html=buildBookHtml(options),win=open("","mangrok-book");if(!win)throw new Error("Allow pop-ups to open the print preview.");win.document.write(html);win.document.close();win.focus();setTimeout(()=>win.print(),250);const book={id:uid("book"),title:options.title,dedication:options.dedication,theme:options.theme,decorations:options.decorations,recipeIds:options.recipes.map(r=>r.id),includeSecrets:options.includeSecrets,secretApprovalAt:options.secretApprovalAt,createdAt:isoNow()};if(state.mode==="cloud")await state.cloud.saveBook(book);else await state.store.put("books",book);toast("Print edition prepared.","success");}catch(error){toast(error.message,"error");}}
 async function orderPhysicalBook(){try{if(state.mode!=="cloud")throw new Error("Connect a cloud account before requesting physical fulfillment.");const options=await bookOptions(true);const book=await state.cloud.saveBook({title:options.title,dedication:options.dedication,theme:options.theme,decorations:options.decorations,recipeIds:options.recipes.map(r=>r.id),includeSecrets:options.includeSecrets,secretApprovalAt:options.secretApprovalAt});const result=await state.cloud.orderBook(book.id);toast(result?.message||"Print request recorded.",result?.status==="provider_not_configured"?"error":"success");}catch(error){toast(error.message,"error");}}
@@ -295,4 +304,34 @@ function toast(message,kind="info"){const node=document.createElement("div");nod
 function fatal(error){console.error(error);document.body.innerHTML=`<main style="max-width:700px;margin:10vh auto;padding:30px"><h1>Mangrok could not open</h1><p>${escapeHtml(error.message)}</p><p>Try reloading. Your browser data has not been intentionally changed.</p></main>`;}
 function formatBytes(value){const n=Number(value)||0;if(n<1024)return`${n} B`;if(n<1048576)return`${(n/1024).toFixed(1)} KB`;return`${(n/1048576).toFixed(1)} MB`;}
 function slug(value){return String(value).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,80)||"recipe";}
-function registerServiceWorker(){if("serviceWorker" in navigator&&location.protocol!=="file:")navigator.serviceWorker.register("./sw.js").catch(error=>console.warn("Service worker",error));}
+async function registerServiceWorker(){
+  if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
+  try {
+    let hadController = Boolean(navigator.serviceWorker.controller);
+    const registration = await navigator.serviceWorker.register("./sw.js");
+    const announceUpdate = () => showUpdateNotice();
+    if (registration.waiting && hadController) announceUpdate();
+    registration.addEventListener("updatefound", () => {
+      const worker = registration.installing;
+      worker?.addEventListener("statechange", () => {
+        if (worker.state === "installed" && navigator.serviceWorker.controller) announceUpdate();
+      });
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController) { hadController = true; return; }
+      if (readSessionValue("mangrok.update-notice") === String(window.MANGROK_CONFIG?.appVersion || "current")) return;
+      announceUpdate();
+    });
+    return registration;
+  } catch (error) {
+    console.warn("Service worker", error);
+    return null;
+  }
+}
+function showUpdateNotice(){if(document.querySelector("#mangrok-update-notice"))return;const version=String(window.MANGROK_CONFIG?.appVersion||"new");const node=document.createElement("aside");node.id="mangrok-update-notice";node.className="update-notice";node.setAttribute("role","status");node.innerHTML=`<div><b>A new Mangrok version is ready</b><p>Reload to use the latest Alchemy, kitchen, and Print Studio improvements.</p></div><button class="button primary" type="button">Reload</button><button class="button ghost" type="button" data-update-dismiss>Later</button>`;document.body.append(node);node.querySelector(".primary").onclick=()=>{writeSessionValue("mangrok.update-notice",version);location.reload()};node.querySelector("[data-update-dismiss]").onclick=()=>{writeSessionValue("mangrok.update-notice",version);node.remove()};}
+function readSessionValue(key){try{return sessionStorage.getItem(key)}catch{return null}}
+function writeSessionValue(key,value){try{sessionStorage.setItem(key,value)}catch{}}
+function appStatus(){return{appVersion:String(window.MANGROK_CONFIG?.appVersion||"unversioned"),mode:state.mode,cloudConfigured:state.cloud.enabled,signedIn:state.mode==="cloud",userEmail:state.cloud.user?.email||"",recipeCount:state.recipes.length,bookCount:state.books.length,legacyPlanCount:state.legacyPlans.length};}
+function respondToBridge(event,value){const resolve=event.detail?.resolve,reject=event.detail?.reject;if(typeof resolve!=="function")return;Promise.resolve(value).then(resolve,error=>typeof reject==="function"?reject(error):resolve(null));}
+async function invokeAlchemyGateway(detail={}){if(state.mode!=="cloud")throw new Error("Sign in before using the Mangrok subscriber gateway.");return state.cloud.runAlchemyGateway({messages:detail.messages,requestId:detail.requestId});}
+async function saveAlchemyExperiment(experiment){if(state.mode!=="cloud"||!experiment)return null;return state.cloud.saveAlchemyExperiment(experiment);}
