@@ -10,3 +10,6 @@ window.MANGROK_CONFIG = Object.freeze({
   supportEmail: "",
   environment: "production"
 });
+
+// Progressive enhancement for the food-first interface and visual kitchen library.
+import("./src/kitchen-ui.js").catch(error => console.warn("Kitchen library enhancement", error));
