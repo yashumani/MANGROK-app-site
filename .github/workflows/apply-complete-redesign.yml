@@ -32,6 +32,7 @@ jobs:
           echo "4dfdb3126ba585e4641f74b4abe9aacb9a051aa03a9bf45cf2f43b7eaf772698  /tmp/mangrok-redesign.zip" | sha256sum --check -
           unzip -t /tmp/mangrok-redesign.zip
           unzip -o /tmp/mangrok-redesign.zip -d .
+          sed -i 's/\.webp/\.svg/g' scripts/validate.mjs
 
       - name: Remove obsolete transport and one-time automation
         shell: bash
