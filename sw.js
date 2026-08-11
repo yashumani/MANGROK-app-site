@@ -1,4 +1,4 @@
-const CACHE = "mangrok-v2-archive-2026-08-10";
+const CACHE = "mangrok-v2-food-studio-2026-08-10";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const APP_SHELL = [
   "./assets/css/archive-components.css",
   "./assets/css/archive-dialogs.css",
   "./assets/css/archive-responsive.css",
+  "./assets/css/food-studio.css",
   "./runtime-config.js",
   "./manifest.webmanifest",
   "./assets/mangrok-mark.svg",
@@ -17,6 +18,8 @@ const APP_SHELL = [
   "./src/store.js",
   "./src/cloud.js",
   "./src/print.js",
+  "./src/kitchen-library.js",
+  "./src/kitchen-ui.js",
   "./legal/privacy.html",
   "./legal/terms.html"
 ];
