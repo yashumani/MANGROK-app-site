@@ -1,12 +1,12 @@
 {
-  "name": "Mangrok — Secret Recipe Vault",
+  "name": "Mangrok — Private Culinary Archive",
   "short_name": "Mangrok",
-  "description": "Preserve recipes too valuable to lose and share their secret layer only by permission.",
+  "description": "Preserve family recipes, seal their secrets, and pass their stories forward.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f8f2e8",
-  "theme_color": "#143d33",
+  "background_color": "#f2e8d3",
+  "theme_color": "#102821",
   "icons": [
     {"src":"assets/mangrok-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]

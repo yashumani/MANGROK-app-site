@@ -1,5 +1,25 @@
-const CACHE = "mangrok-v2-2026-08-10";
-const APP_SHELL = ["./","./index.html","./styles.css","./runtime-config.js","./manifest.webmanifest","./assets/mangrok-mark.svg","./src/app.js","./src/model.js","./src/crypto.js","./src/store.js","./src/cloud.js","./src/print.js","./legal/privacy.html","./legal/terms.html"];
+const CACHE = "mangrok-v2-archive-2026-08-10";
+const APP_SHELL = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./assets/css/archive-base.css",
+  "./assets/css/archive-vault.css",
+  "./assets/css/archive-components.css",
+  "./assets/css/archive-dialogs.css",
+  "./assets/css/archive-responsive.css",
+  "./runtime-config.js",
+  "./manifest.webmanifest",
+  "./assets/mangrok-mark.svg",
+  "./src/app.js",
+  "./src/model.js",
+  "./src/crypto.js",
+  "./src/store.js",
+  "./src/cloud.js",
+  "./src/print.js",
+  "./legal/privacy.html",
+  "./legal/terms.html"
+];
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())));
 self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", event => {
