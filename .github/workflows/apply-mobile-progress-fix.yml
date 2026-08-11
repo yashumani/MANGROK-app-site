@@ -1,0 +1,67 @@
+name: Apply Mangrok mobile shell and AI progress fix
+
+on:
+  push:
+    branches:
+      - agent/mobile-app-shell-progress
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-mobile-progress-fix
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staged release
+        uses: actions/checkout@v6
+        with:
+          ref: agent/mobile-app-shell-progress
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Reconstruct verified mobile release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .mobile-fix/part* | base64 --decode > /tmp/mangrok-mobile-progress-fix.zip
+          echo "50d53fb508357dfbf95195655185f414a02d6b7959fc3cf406505da8f4542a92  /tmp/mangrok-mobile-progress-fix.zip" | sha256sum --check -
+          unzip -t /tmp/mangrok-mobile-progress-fix.zip
+          unzip -o /tmp/mangrok-mobile-progress-fix.zip -d .
+
+          rm -rf .mobile-fix
+          rm -f .github/workflows/apply-mobile-progress-fix.yml
+
+          test -f tests/mobile-experience.test.mjs
+          grep -q 'mangrok-v6-mobile-progress' sw.js
+          grep -q '3.2.0-alpha.3' package.json
+          grep -q 'alchemy-progress-sheet' src/alchemy-ui.js
+          grep -q 'alchemy-mobile-steps' assets/css/alchemy.css
+
+      - name: Run complete repository checks
+        run: |
+          npm run check
+          git diff --check
+
+      - name: Commit reviewable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No mobile release changes were materialized.'
+            exit 1
+          fi
+          git commit -m 'Fix mobile app shell and expose AI progress'
+          git push origin HEAD:agent/mobile-app-shell-progress
