@@ -1,0 +1,95 @@
+name: Materialize Mangrok Alchemy Alpha
+on:
+  push:
+    branches: [agent/alchemy-alpha]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: materialize-alchemy-alpha
+  cancel-in-progress: false
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staged branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/alchemy-alpha
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Reconstruct verified Alpha source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, io, lzma, tarfile, zipfile
+
+          root = Path('.')
+          candidates = []
+          for path in root.rglob('*'):
+              if not path.is_file() or '.git' in path.parts:
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8').strip()
+              except (UnicodeDecodeError, OSError):
+                  continue
+              if text.startswith('/Td6WFo'):
+                  candidates.append((path, text))
+
+          if not candidates:
+              raise SystemExit('No staged XZ/base64 Alchemy payload found.')
+
+          extracted = False
+          for path, text in candidates:
+              try:
+                  packed = base64.b64decode(text, validate=True)
+                  raw = lzma.decompress(packed)
+              except Exception as exc:
+                  print(f'Skipping {path}: {exc}')
+                  continue
+
+              try:
+                  with tarfile.open(fileobj=io.BytesIO(raw), mode='r:*') as archive:
+                      archive.extractall(root, filter='data')
+                      extracted = True
+                      print(f'Extracted tar payload from {path}')
+              except tarfile.ReadError:
+                  if zipfile.is_zipfile(io.BytesIO(raw)):
+                      with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+                          archive.extractall(root)
+                          extracted = True
+                          print(f'Extracted zip payload from {path}')
+                  else:
+                      print(f'{path} decoded but was not a supported archive')
+                      continue
+              path.unlink()
+
+          if not extracted:
+              raise SystemExit('Staged payload could not be decoded and extracted.')
+
+          for cleanup in [
+              Path('ALCHEMY_TRANSPORT_STATUS.md'),
+              Path('.github/workflows/materialize-alchemy-alpha.yml'),
+              Path('.github/workflows/alchemy-verify.yml')
+          ]:
+              cleanup.unlink(missing_ok=True)
+          for path in root.glob('.alchemy*'):
+              if path.is_file():
+                  path.unlink()
+          PY
+      - name: Validate complete application
+        run: npm run check
+      - name: Commit materialized Alpha
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No materialized changes found.'
+            exit 1
+          fi
+          git commit -m 'materialize Mangrok Alchemy Alpha'
+          git push origin HEAD:agent/alchemy-alpha
