@@ -1,0 +1,69 @@
+name: Materialize complete Mangrok redesign
+
+on:
+  push:
+    branches: ["agent/complete-alchemy-redesign"]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staged redesign
+        uses: actions/checkout@v6
+        with:
+          ref: agent/complete-alchemy-redesign
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconstruct verified redesign
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .redesign-payload/chunk-* | base64 --decode > /tmp/mangrok-redesign.zip
+          echo "59337f3875975ca1a65764281eb0a7b46df15a7577b6212800fbfc578a602ae2  /tmp/mangrok-redesign.zip" | sha256sum --check -
+          unzip -o /tmp/mangrok-redesign.zip
+          rm -f /tmp/mangrok-redesign.zip
+          rm -rf .redesign-payload .materialize .alchemy-source .alchemy-transfer
+          rm -f ALCHEMY_TRANSPORT_STATUS.md
+          rm -f .github/workflows/alchemy-verify.yml
+          rm -f .github/workflows/materialize-alchemy.yml
+          rm -f .github/workflows/materialize-alchemy-alpha.yml
+          rm -f .github/workflows/publish-alchemy-alpha.yml
+          rm -f .github/workflows/materialize-complete-redesign.yml
+          test -f src/alchemy-ui.js
+          test -f src/culinary-engine.js
+          test -f src/local-ai.js
+          test -f src/print-decor.js
+          test -f assets/css/alchemy.css
+          test -f assets/generated/hero.svg
+          test -f supabase/migrations/002_alchemy.sql
+          if grep -q 'item\.icon' src/kitchen-ui.js; then
+            echo "Legacy icon-based kitchen renderer remains."
+            exit 1
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Validate complete website
+        run: npm run check
+
+      - name: Commit reviewable redesign source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No materialized changes found."
+            exit 1
+          fi
+          git commit -m "Materialize complete Mangrok Alchemy redesign"
+          git push origin HEAD:agent/complete-alchemy-redesign
