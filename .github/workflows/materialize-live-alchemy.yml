@@ -67,6 +67,8 @@ jobs:
 
           index = Path("index.html")
           html = index.read_text(encoding="utf-8")
+          html = html.replace("script-src 'self' https://esm.sh;", "script-src 'self' 'wasm-unsafe-eval' https://esm.sh https://esm.run; worker-src 'self' blob:;")
+          html = html.replace("connect-src 'self' https://esm.sh", "connect-src 'self' https://esm.sh https://esm.run https://huggingface.co https://*.huggingface.co https://raw.githubusercontent.com http://127.0.0.1:* http://localhost:*")
           html = re.sub(r'(<button class="nav-item[^"]*"[^>]*>)<span aria-hidden="true">[^<]+</span>', r'\1', html)
           html = html.replace('<span aria-hidden="true">⌕</span>', '')
           html = html.replace('<span aria-hidden="true">＋</span>', '')
