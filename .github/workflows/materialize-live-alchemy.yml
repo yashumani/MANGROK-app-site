@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: materialize-live-alchemy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   materialize:
@@ -33,12 +33,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Transport segment lengths:"
-          wc -c .materialize-live/part*
-          echo "Transport segment hashes:"
-          sha256sum .materialize-live/part*
-          cat .materialize-live/part* | base64 --decode > /tmp/alchemy-live.zip
-          echo "Reconstructed release: $(sha256sum /tmp/alchemy-live.zip)"
+          cat \
+            .materialize-live/part000 \
+            .materialize-live/part001 \
+            .materialize-live/part002 \
+            .materialize-live/part003 \
+            .materialize-live/part004 \
+            .materialize-live/part005 \
+            .materialize-live/part006 \
+            .materialize-live/part0070 \
+            .materialize-live/part0071 \
+            .materialize-live/part0072 \
+            .materialize-live/part0073 \
+            .materialize-live/part008 \
+            .materialize-live/part009 \
+            .materialize-live/part010 \
+            .materialize-live/part011 \
+            | base64 --decode > /tmp/alchemy-live.zip
           echo "abc2b785463d6fcaa5aa9f7d3c4d0cec97bfbbcf965dcd8c4b3925308feb248b  /tmp/alchemy-live.zip" | sha256sum --check -
           unzip -o /tmp/alchemy-live.zip
 
