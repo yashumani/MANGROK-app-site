@@ -1,11 +1,1 @@
-import { cp, mkdir, rm, readdir } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dist = path.join(root, "dist");
-await rm(dist, { recursive: true, force: true }); await mkdir(dist, { recursive: true });
-for (const entry of ["index.html","404.html","styles.css","runtime-config.js","manifest.webmanifest","sw.js","SECURITY.md","assets","src","legal"]) {
-  await cp(path.join(root, entry), path.join(dist, entry), { recursive: true });
-}
-console.log(`Built ${await countFiles(dist)} files in dist/`);
-async function countFiles(dir){let total=0;for(const item of await readdir(dir,{withFileTypes:true}))total+=item.isDirectory()?await countFiles(path.join(dir,item.name)):1;return total;}
+import{cp,mkdir,rm,readdir}from"node:fs/promises";import path from"node:path";import{fileURLToPath}from"node:url";const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),".."),dist=path.join(root,"dist");await rm(dist,{recursive:true,force:true});await mkdir(dist,{recursive:true});for(const e of["index.html","404.html","styles.css","runtime-config.js","manifest.webmanifest","sw.js","SECURITY.md","assets","src","legal"])await cp(path.join(root,e),path.join(dist,e),{recursive:true});console.log(`Built ${await count(dist)} files in dist/`);async function count(d){let n=0;for(const i of await readdir(d,{withFileTypes:true}))n+=i.isDirectory()?await count(path.join(d,i.name)):1;return n}

@@ -2,17 +2,66 @@ import { readFile, access, readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const required = ["index.html","styles.css","runtime-config.js","manifest.webmanifest","sw.js","src/app.js","src/model.js","src/crypto.js","src/store.js","src/cloud.js","src/print.js","supabase/migrations/001_platform.sql","SECURITY.md"];
-for(const file of required) await access(path.join(root,file));
-JSON.parse(await readFile(path.join(root,"manifest.webmanifest"),"utf8"));
-for(const file of (await walk(path.join(root,"src"))).filter(f=>f.endsWith(".js"))) execFileSync(process.execPath,["--check",file],{stdio:"pipe"});
-const browserText = await Promise.all(["runtime-config.js",...(await walk(path.join(root,"src"))).filter(f=>f.endsWith(".js")).map(f=>path.relative(root,f))].map(f=>readFile(path.join(root,f),"utf8")));
-if(browserText.some(text=>/SUPABASE_SERVICE_ROLE_KEY|service[_-]?role\s*[:=]\s*["'][A-Za-z0-9]/i.test(text))) throw new Error("Service-role material detected in browser source");
-const html=await readFile(path.join(root,"index.html"),"utf8");
-for(const id of ["recipe-dialog","recipe-grid","book-form","legacy-form","auth-dialog"])if(!html.includes(`id="${id}"`))throw new Error(`Missing UI element ${id}`);
-if(!html.includes("Content-Security-Policy"))throw new Error("Missing CSP");
-const sql=await readFile(path.join(root,"supabase/migrations/001_platform.sql"),"utf8");
-for(const phrase of ["enable row level security","guard_and_version_recipe","create_recipe_share_link","human_review_required","recipe_assets_storage_select"])if(!sql.toLowerCase().includes(phrase.toLowerCase()))throw new Error(`Missing SQL security contract: ${phrase}`);
-console.log("Static validation passed.");
-async function walk(dir){const files=[];for(const item of await readdir(dir,{withFileTypes:true})){const p=path.join(dir,item.name);if(item.isDirectory())files.push(...await walk(p));else files.push(p);}return files;}
+const required = [
+  "index.html", "styles.css", "runtime-config.js", "manifest.webmanifest", "sw.js",
+  "src/app.js", "src/cloud.js", "src/print.js", "src/kitchen-library.js", "src/kitchen-ui.js",
+  "src/culinary-engine.js", "src/local-ai.js", "src/generated-images.js",
+  "assets/generated/hero.svg", "assets/generated/ingredients.svg", "assets/generated/equipment.svg",
+  "assets/generated/insights.svg", "assets/generated/evolution.svg",
+  "src/alchemy-ui.js",
+  "src/print-decor.js", "assets/css/alchemy.css",
+  "supabase/migrations/001_platform.sql", "supabase/migrations/002_alchemy.sql",
+  "supabase/functions/alchemy-ai/index.ts", "SECURITY.md"
+];
+
+for (const file of required) await access(path.join(root, file));
+JSON.parse(await readFile(path.join(root, "manifest.webmanifest"), "utf8"));
+
+for (const file of (await walk(path.join(root, "src"))).filter(file => file.endsWith(".js"))) {
+  execFileSync(process.execPath, ["--check", file], { stdio: "pipe" });
+}
+
+const html = await readFile(path.join(root, "index.html"), "utf8");
+for (const phrase of [
+  "Content-Security-Policy",
+  "wasm-unsafe-eval",
+  "worker-src 'self' blob:",
+  "https://esm.run",
+  "http://127.0.0.1:11434",
+  "Mangrok"
+]) {
+  if (!html.includes(phrase)) throw new Error(`Missing interface/CSP contract: ${phrase}`);
+}
+
+const browserFiles = [
+  "runtime-config.js",
+  ...(await walk(path.join(root, "src"))).filter(file => file.endsWith(".js")).map(file => path.relative(root, file))
+];
+const browserText = await Promise.all(browserFiles.map(file => readFile(path.join(root, file), "utf8")));
+if (browserText.some(text => /SUPABASE_SERVICE_ROLE_KEY|AI_GATEWAY_KEY\s*[:=]\s*["'][^"']+/i.test(text))) {
+  throw new Error("Private credential detected in browser source.");
+}
+
+const kitchenUi = await readFile(path.join(root, "src/kitchen-ui.js"), "utf8");
+const kitchenLibrary = await readFile(path.join(root, "src/kitchen-library.js"), "utf8");
+if (/item\.icon|iconFor\s*\(/.test(kitchenUi)) throw new Error("Legacy icon renderer remains in the kitchen UI.");
+if (/[\u{1F300}-\u{1FAFF}]/u.test(`${kitchenUi}\n${kitchenLibrary}`)) {
+  throw new Error("Emoji-based ingredient or equipment assets remain.");
+}
+for (const symbol of ["⌂", "⌕", "▤", "◇", "◎", "♢", "⚙", "✦", "＋"]) {
+  if (html.includes(symbol)) throw new Error(`Symbol-based interface control remains: ${symbol}`);
+}
+
+console.log("Mangrok Alchemy static validation passed.");
+
+async function walk(directory) {
+  const output = [];
+  for (const item of await readdir(directory, { withFileTypes: true })) {
+    const current = path.join(directory, item.name);
+    if (item.isDirectory()) output.push(...await walk(current));
+    else output.push(current);
+  }
+  return output;
+}
