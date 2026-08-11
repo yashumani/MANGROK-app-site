@@ -1,0 +1,122 @@
+name: Materialize live Mangrok Alchemy
+
+on:
+  push:
+    branches: ["agent/alchemy-live-source"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-live-alchemy
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/alchemy-live-source
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Reconstruct verified Alchemy release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .materialize-live/part* | base64 --decode > /tmp/alchemy-live.zip
+          echo "abc2b785463d6fcaa5aa9f7d3c4d0cec97bfbbcf965dcd8c4b3925308feb248b  /tmp/alchemy-live.zip" | sha256sum --check -
+          unzip -o /tmp/alchemy-live.zip
+
+          rm -rf .materialize-live .materialize .alchemy-source .alchemy-transfer
+          rm -f ALCHEMY_TRANSPORT_STATUS.md
+          rm -f .github/workflows/alchemy-verify.yml
+          rm -f .github/workflows/materialize-alchemy.yml
+          rm -f .github/workflows/materialize-alchemy-alpha.yml
+          rm -f .github/workflows/publish-alchemy-alpha.yml
+          rm -f .github/workflows/materialize-live-alchemy.yml
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          index = Path("index.html")
+          html = index.read_text(encoding="utf-8")
+          html = re.sub(r'(<button class="nav-item[^"]*"[^>]*>)<span aria-hidden="true">[^<]+</span>', r'\1', html)
+          html = html.replace('<span aria-hidden="true">⌕</span>', '')
+          html = html.replace('<span aria-hidden="true">＋</span>', '')
+          html = html.replace('<div class="empty-mark">✦</div>', '')
+          html = html.replace('<button class="icon-button" id="notifications-button" aria-label="Notifications"><span aria-hidden="true">♢</span><b id="notification-count" hidden>0</b></button>', '<button class="button ghost activity-button" id="notifications-button" aria-label="Notifications">Notifications <b id="notification-count" hidden>0</b></button>')
+          html = re.sub(r'<button class="icon-button close-button"([^>]*)>×</button>', r'<button class="button ghost close-button"\1>Close</button>', html)
+          html = re.sub(r'<button class="icon-button"([^>]*)>×</button>', r'<button class="button ghost"\1>Close</button>', html)
+          html = html.replace('<title>Mangrok — Secret Recipe Vault</title>', '<title>Mangrok — AI Culinary Alchemy and Recipe Vault</title>')
+          html = html.replace('Mangrok is a private, permission-aware vault for recipes too valuable to lose and too personal to publish carelessly.', 'Mangrok is an AI culinary discovery lab, private recipe vault, and illustrated cookbook studio.')
+          index.write_text(html, encoding="utf-8")
+
+          app = Path("src/app.js")
+          source = app.read_text(encoding="utf-8")
+          source = source.replace('class="icon-button" data-dismiss aria-label="Close">×</button>', 'class="button ghost" data-dismiss aria-label="Close">Close</button>')
+          source = source.replace('class="icon-button" data-dismiss>×</button>', 'class="button ghost" data-dismiss>Close</button>')
+          app.write_text(source, encoding="utf-8")
+
+          css = Path("assets/css/alchemy.css")
+          style = css.read_text(encoding="utf-8") + '''
+          /* Text-led controls: Mangrok intentionally avoids icon-only navigation. */
+          .nav-item{padding-left:18px!important}
+          .top-actions .button,.modal header .button{white-space:nowrap}
+          #notifications-button{position:relative;min-width:auto;padding-inline:15px}
+          #notifications-button b{min-width:18px;height:18px;padding:0 5px;display:inline-grid;place-items:center;color:#fff;background:var(--food-tomato);border-radius:99px;font-size:8px}
+          .close-button{width:auto!important;min-width:70px;padding-inline:14px!important}
+          '''
+          css.write_text(style, encoding="utf-8")
+
+          forbidden = set('⌂◎▤◇⚙♢＋⌕✦')
+          for path in [Path('index.html'), Path('src/app.js'), Path('src/kitchen-ui.js'), Path('src/alchemy-ui.js')]:
+              text = path.read_text(encoding='utf-8')
+              found = sorted(forbidden.intersection(text))
+              if found:
+                  raise SystemExit(f"Symbol-based interface controls remain in {path}: {found}")
+              if any(ord(char) > 0x1F000 for char in text):
+                  raise SystemExit(f"Emoji or pictograph remains in {path}")
+          PY
+
+          test -f assets/css/alchemy.css
+          test -f src/alchemy-ui.js
+          test -f src/culinary-engine.js
+          test -f src/local-ai.js
+          test -f src/generated/ingredients.js
+          test -f src/generated/equipment.js
+          test -f src/print-decor.js
+          test -f supabase/migrations/002_alchemy.sql
+          test -f supabase/functions/alchemy-ai/index.ts
+
+          if grep -q 'item\.icon' src/kitchen-ui.js; then
+            echo "Legacy icon-based kitchen renderer remains."
+            exit 1
+          fi
+
+      - name: Validate complete application
+        run: npm run check
+
+      - name: Commit reviewable production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No materialized changes found."
+            exit 1
+          fi
+          git commit -m "Materialize complete Mangrok Alchemy redesign"
+          git push origin HEAD:agent/alchemy-live-source
