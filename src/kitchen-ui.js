@@ -5,6 +5,7 @@ import {
   kitchenCategories,
   findKitchenItem
 } from "./kitchen-library.js";
+import { GENERATED_IMAGES as IMG } from "./generated-images.js";
 
 const TOOL_PREFIX = "tool:";
 const state = {
@@ -32,6 +33,11 @@ function init() {
   observeRenderedRecipes();
   observeRecipeViewer();
   applyStoredTheme();
+  window.addEventListener("mangrok:kitchen-selection", event => {
+    if (Array.isArray(event.detail?.ingredients)) state.selectedIngredients = new Set(event.detail.ingredients.map(String));
+    if (Array.isArray(event.detail?.equipment)) state.selectedEquipment = new Set(event.detail.equipment.map(String));
+    renderEquipmentSummary();
+  });
 }
 
 function enhanceHeader() {
@@ -46,20 +52,25 @@ function enhanceHeader() {
   const sidebarDescriptor = document.querySelector(".brand small");
   if (sidebarDescriptor) sidebarDescriptor.textContent = "Private culinary archive";
 
+  const notification = document.querySelector("#notifications-button");
+  if (notification) { const badge = notification.querySelector("b"); notification.className = "button ghost"; notification.replaceChildren(document.createTextNode("Activity")); if (badge) notification.append(badge); }
+  const newRecipe = document.querySelector("#new-recipe-button");
+  if (newRecipe) newRecipe.textContent = "New recipe";
   const actions = document.querySelector(".top-actions");
   if (actions && !document.querySelector("#food-theme-toggle")) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.id = "food-theme-toggle";
-    toggle.className = "icon-button food-theme-toggle";
+    toggle.className = "button ghost food-theme-toggle";
     toggle.setAttribute("aria-label", "Switch Mangrok color theme");
     toggle.title = "Switch color theme";
-    toggle.textContent = "◐";
+    toggle.textContent = document.body.classList.contains("food-night") ? "Day theme" : "Night theme";
     actions.prepend(toggle);
     toggle.addEventListener("click", () => {
       const enabled = document.body.classList.toggle("food-night");
       localStorage.setItem("mangrok.food-theme", enabled ? "night" : "day");
       toggle.setAttribute("aria-pressed", String(enabled));
+      toggle.textContent = enabled ? "Day theme" : "Night theme";
     });
   }
 }
@@ -72,11 +83,10 @@ function enhanceVaultLanding() {
   const text = hero.firstElementChild;
   if (text && !text.querySelector(".food-hero-still-life")) {
     text.insertAdjacentHTML("beforeend", `
-      <div class="food-hero-still-life" aria-label="Mangrok visual kitchen library">
-        <span><b>🍅</b><small>Fresh</small></span>
-        <span><b>🌿</b><small>Aromatic</small></span>
-        <span><b>🍳</b><small>Essential</small></span>
-        <span><b>🔪</b><small>Prepared</small></span>
+      <div class="food-hero-still-life" aria-label="Generated Mangrok culinary scenes">
+        <figure><img src="${IMG.hero}" alt="Generated Mangrok culinary alchemy kitchen"><figcaption>Discover</figcaption></figure>
+        <figure><img src="${IMG.ingredients}" alt="Generated collection of fresh culinary ingredients"><figcaption>Compose</figcaption></figure>
+        <figure><img src="${IMG.insights}" alt="Generated intelligent cooking insight scene"><figcaption>Evolve</figcaption></figure>
       </div>`);
   }
 
@@ -87,15 +97,15 @@ function enhanceVaultLanding() {
     <div class="food-library-heading">
       <div>
         <p class="eyebrow">Visual kitchen library</p>
-        <h2 id="food-library-heading">Build a recipe from ingredients, tools, and memory.</h2>
+        <h2 id="food-library-heading">Build a recipe from real culinary elements.</h2>
       </div>
-      <p>${KITCHEN_LIBRARY_COUNTS.total} illustrated choices are ready, with custom entries for everything unique to your kitchen.</p>
+      <p>${KITCHEN_LIBRARY_COUNTS.total} selectable ingredients, cookware pieces, and utensils use original Mangrok-generated culinary imagery.</p>
     </div>
     <div class="food-library-cards">
-      ${previewCard("ingredients", "Vegetables", "🥬", "Fresh ingredients", "Produce, fruit, herbs, dairy and proteins")}
-      ${previewCard("ingredients", "Herbs & spices", "🫙", "Pantry & spice shelf", "Grains, baking staples, sauces and aromatics")}
-      ${previewCard("equipment", "Cookware", "🍳", "Cookware", "Pans, pots, steamers, woks and specialty vessels")}
-      ${previewCard("equipment", "Utensils", "🔪", "Utensils & prep tools", "Knives, spoons, whisks, graters and measuring tools")}
+      ${previewCard("ingredients", "Vegetables", IMG.ingredients, "18% 24%", "Fresh ingredients", "Produce, fruit, herbs, dairy and proteins")}
+      ${previewCard("ingredients", "Herbs & spices", IMG.ingredients, "76% 70%", "Pantry and spice shelf", "Grains, baking staples, sauces and aromatics")}
+      ${previewCard("equipment", "Cookware", IMG.equipment, "22% 32%", "Cookware", "Pans, pots, steamers, woks and specialty vessels")}
+      ${previewCard("equipment", "Utensils", IMG.equipment, "78% 68%", "Utensils and preparation", "Knives, spoons, whisks, graters and measuring tools")}
     </div>`;
   hero.insertAdjacentElement("afterend", preview);
   preview.addEventListener("click", event => {
@@ -105,11 +115,10 @@ function enhanceVaultLanding() {
   });
 }
 
-function previewCard(mode, category, icon, title, description) {
+function previewCard(mode, category, image, position, title, description) {
   return `<button type="button" class="food-library-card" data-kitchen-preview data-mode="${escapeAttribute(mode)}" data-category="${escapeAttribute(category)}">
-    <span class="food-library-visual" aria-hidden="true">${icon}</span>
-    <span><b>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small></span>
-    <i aria-hidden="true">↗</i>
+    <img class="food-library-visual" src="${image}" alt="" style="object-position:${position}">
+    <span><b>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small><em>Explore selection</em></span>
   </button>`;
 }
 
@@ -152,14 +161,14 @@ function createKitchenDialog() {
     <div class="modal-shell kitchen-library-shell">
       <header>
         <div><p class="eyebrow">Food-first recipe entry</p><h2>Kitchen library</h2><p class="kitchen-dialog-intro">Select illustrated ingredients, cookware, appliances and utensils. Custom items remain available for family-specific tools and regional ingredients.</p></div>
-        <button type="button" class="icon-button" data-kitchen-close aria-label="Close">×</button>
+        <button type="button" class="button ghost" data-kitchen-close aria-label="Close">Close</button>
       </header>
       <div class="kitchen-library-controls">
         <div class="kitchen-mode-tabs" role="tablist" aria-label="Kitchen library type">
           <button type="button" role="tab" data-kitchen-mode="ingredients">Ingredients <small>${KITCHEN_LIBRARY_COUNTS.ingredients}</small></button>
           <button type="button" role="tab" data-kitchen-mode="equipment">Equipment <small>${KITCHEN_LIBRARY_COUNTS.equipment}</small></button>
         </div>
-        <label class="kitchen-search"><span aria-hidden="true">⌕</span><span class="sr-only">Search kitchen library</span><input id="kitchen-library-search" type="search" autocomplete="off" placeholder="Search tomato, saffron, skillet, whisk…"></label>
+        <label class="kitchen-search"><span class="sr-only">Search kitchen library</span><input id="kitchen-library-search" type="search" autocomplete="off" placeholder="Search tomato, saffron, skillet, whisk…"></label>
       </div>
       <div class="kitchen-category-list" id="kitchen-category-list" aria-label="Kitchen library categories"></div>
       <div class="kitchen-grid" id="kitchen-library-grid" role="list"></div>
@@ -299,16 +308,19 @@ function renderKitchenLibrary() {
   });
 
   dialog.querySelector("#kitchen-category-list").innerHTML = kitchenCategories(state.mode).map(category => `<button type="button" class="${category === state.category ? "active" : ""}" data-kitchen-category="${escapeAttribute(category)}">${escapeHtml(category)}</button>`).join("");
-  dialog.querySelector("#kitchen-library-grid").innerHTML = filtered.map(item => kitchenCard(item, selected.has(item.name))).join("");
+  dialog.querySelector("#kitchen-library-grid").innerHTML = filtered.map((item, index) => kitchenCard(item, selected.has(item.name), index)).join("");
   dialog.querySelector("#kitchen-library-empty").hidden = filtered.length > 0;
   renderSelectedTray();
 }
 
-function kitchenCard(item, selected) {
+function kitchenCard(item, selected, index = 0) {
+  const image = state.mode === "equipment" ? IMG.equipment : IMG.ingredients;
+  const x = (index * 37) % 100;
+  const y = (index * 61) % 100;
   return `<button type="button" class="kitchen-item-card ${selected ? "selected" : ""}" data-kitchen-item="${escapeAttribute(item.name)}" aria-pressed="${selected}" role="listitem">
-    <span class="kitchen-item-visual" aria-hidden="true">${item.icon}</span>
+    <img class="kitchen-item-visual" src="${image}" alt="" style="object-position:${x}% ${y}%">
     <span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.category)}</small></span>
-    <i aria-hidden="true">${selected ? "✓" : "+"}</i>
+    <em>${selected ? "Selected" : "Add"}</em>
   </button>`;
 }
 
@@ -334,7 +346,9 @@ function addCustomKitchenItem() {
 function renderSelectedTray() {
   const dialog = document.querySelector("#kitchen-library-dialog");
   const selected = [...currentSelection()];
-  dialog.querySelector("#kitchen-selected-tray").innerHTML = selected.length ? selected.map(name => `<button type="button" data-remove-kitchen-item="${escapeAttribute(name)}"><span>${escapeHtml(iconFor(name, state.mode))}</span>${escapeHtml(name)}<i aria-hidden="true">×</i></button>`).join("") : `<p>Nothing selected in this section yet.</p>`;
+  dialog.querySelector("#kitchen-selected-tray").innerHTML = selected.length
+    ? selected.map(name => `<button type="button" data-remove-kitchen-item="${escapeAttribute(name)}">${escapeHtml(name)}<small>Remove</small></button>`).join("")
+    : `<p>Nothing selected in this section yet.</p>`;
   dialog.querySelector("#kitchen-selection-count").textContent = `${selected.length} selected`;
 }
 
@@ -373,7 +387,7 @@ function enhanceRecipeCard(card) {
   if (!toolTags.length) { card.dataset.kitchenEnhanced = "true"; return; }
   toolTags.forEach(tag => tag.remove());
   const meta = card.querySelector(".card-meta");
-  if (meta) meta.insertAdjacentHTML("beforeend", `<span class="equipment-meta">♨ ${toolTags.length} tool${toolTags.length === 1 ? "" : "s"}</span>`);
+  if (meta) meta.insertAdjacentHTML("beforeend", `<span class="equipment-meta">${toolTags.length} kitchen tool${toolTags.length === 1 ? "" : "s"}</span>`);
   card.dataset.kitchenEnhanced = "true";
 }
 
@@ -386,7 +400,7 @@ function observeRecipeViewer() {
     const names = toolTags.map(tag => displayToolName(tag.textContent.slice(TOOL_PREFIX.length)));
     toolTags.forEach(tag => tag.remove());
     const target = content.querySelector(".viewer-layout > div:nth-child(2)") || content;
-    target.insertAdjacentHTML("beforeend", `<section class="viewer-equipment"><p class="eyebrow">Kitchen setup</p><h3>Equipment & utensils</h3><div>${names.map(name => `<span><b aria-hidden="true">${escapeHtml(iconFor(name, "equipment"))}</b>${escapeHtml(name)}</span>`).join("")}</div></section>`);
+    target.insertAdjacentHTML("beforeend", `<section class="viewer-equipment"><p class="eyebrow">Kitchen setup</p><h3>Equipment and utensils</h3><div>${names.map((name, index) => `<span><img src="${IMG.equipment}" alt="" style="object-position:${(index * 43) % 100}% ${(index * 67) % 100}%">${escapeHtml(name)}</span>`).join("")}</div></section>`);
   };
   new MutationObserver(enhance).observe(content, { childList: true, subtree: true });
   enhance();
@@ -395,13 +409,10 @@ function observeRecipeViewer() {
 function applyStoredTheme() {
   const enabled = localStorage.getItem("mangrok.food-theme") === "night";
   document.body.classList.toggle("food-night", enabled);
-  document.querySelector("#food-theme-toggle")?.setAttribute("aria-pressed", String(enabled));
+  const toggle = document.querySelector("#food-theme-toggle"); toggle?.setAttribute("aria-pressed", String(enabled)); if (toggle) toggle.textContent = enabled ? "Day theme" : "Night theme";
 }
 
-function iconFor(name, mode) {
-  const found = findKitchenItem(name, mode);
-  return found?.icon || (mode === "equipment" ? "♨" : "✦");
-}
+
 
 function displayToolName(value) {
   const cleaned = String(value || "").trim();

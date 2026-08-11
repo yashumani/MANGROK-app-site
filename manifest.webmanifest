@@ -1,13 +1,18 @@
 {
-  "name": "Mangrok — Private Culinary Archive",
+  "name": "Mangrok — AI Culinary Alchemy & Recipe Studio",
   "short_name": "Mangrok",
-  "description": "Preserve family recipes, seal their secrets, and pass their stories forward.",
+  "description": "Discover and evolve recipes with local AI, preserve them privately, and design illustrated family cookbooks.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f2e8d3",
-  "theme_color": "#102821",
+  "background_color": "#fbf5f8",
+  "theme_color": "#76506f",
   "icons": [
-    {"src":"assets/mangrok-mark.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+    {
+      "src": "assets/mangrok-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
   ]
 }

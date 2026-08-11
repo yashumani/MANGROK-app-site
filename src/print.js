@@ -1,50 +1,8 @@
 import { PRIVACY } from "./model.js";
-
-export function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>'"]/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "'":"&#39;", '"':"&quot;" })[char]);
-}
-export function assertSecretApproval(includeSecrets, approvedAt) {
-  if (includeSecrets && !approvedAt) throw new Error("Confirm that sealed notes may appear in this irreversible print output.");
-}
-export function buildBookHtml({ title, dedication = "", theme = "heritage", recipes = [], includeSecrets = false, secretApprovalAt = null, unlockedSecrets = {} }) {
-  assertSecretApproval(includeSecrets, secretApprovalAt);
-  const toc = recipes.map((recipe, index) => `<li><span>${escapeHtml(recipe.title)}</span><span>${index + 1}</span></li>`).join("");
-  const pages = recipes.map((recipe, index) => {
-    const secret = includeSecrets ? unlockedSecrets[recipe.id] : "";
-    const ingredientItems = recipe.ingredients.map(item => `<li>${escapeHtml(item)}</li>`).join("");
-    const stepItems = recipe.steps.map((item, step) => `<li><span class="step-number">${step + 1}</span>${escapeHtml(item)}</li>`).join("");
-    const origin = [recipe.origin?.creator, recipe.origin?.place, recipe.origin?.year].filter(Boolean).map(escapeHtml).join(" · ");
-    return `<article class="recipe-page">
-      <header><p class="eyebrow">Recipe ${index + 1} · ${escapeHtml(PRIVACY[recipe.privacy] || recipe.privacy)}</p><h2>${escapeHtml(recipe.title)}</h2>
-      ${recipe.summary ? `<p class="summary">${escapeHtml(recipe.summary)}</p>` : ""}${origin ? `<p class="origin">${origin}</p>` : ""}</header>
-      <section><h3>Ingredients</h3><ul class="ingredients">${ingredientItems}</ul></section>
-      <section><h3>Method</h3><ol class="steps">${stepItems}</ol></section>
-      ${recipe.origin?.story ? `<section class="story"><h3>Story & lineage</h3><p>${escapeHtml(recipe.origin.story).replaceAll("\n", "<br>")}</p></section>` : ""}
-      ${secret ? `<aside class="sealed"><h3>Sealed note — intentionally printed</h3><p>${escapeHtml(secret).replaceAll("\n", "<br>")}</p></aside>` : ""}
-      <footer>${escapeHtml(recipe.origin?.custodian ? `Custodian: ${recipe.origin.custodian}` : "Preserved with Mangrok")}</footer>
-    </article>`;
-  }).join("");
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${bookCss(theme)}</style></head><body class="theme-${escapeHtml(theme)}">
-    <section class="cover"><div><p>Mangrok private edition</p><h1>${escapeHtml(title)}</h1>${dedication ? `<blockquote>${escapeHtml(dedication)}</blockquote>` : ""}
-    <small>${recipes.length} preserved recipe${recipes.length === 1 ? "" : "s"}</small></div></section>
-    <section class="toc"><h2>Contents</h2><ol>${toc}</ol><p class="notice">Printed information cannot be revoked. Handle sealed notes with care.</p></section>
-    ${pages}</body></html>`;
-}
-
-function bookCss(theme) {
-  const accent = theme === "modern" ? "#335c67" : theme === "botanical" ? "#456b4d" : "#8a4a32";
-  return `@page{size:6in 9in;margin:.55in .55in .65in}@media print{.cover,.toc,.recipe-page{break-after:page}.recipe-page:last-child{break-after:auto}}
-  *{box-sizing:border-box}body{margin:0;color:#201c18;font:11pt/1.5 Georgia,serif;background:#fff}.cover,.toc,.recipe-page{min-height:7.8in;padding:.08in}
-  .cover{display:grid;place-items:center;text-align:center;border:3px double ${accent}}.cover h1{font-size:34pt;line-height:1.05;margin:.25in 0}.cover p,.eyebrow{letter-spacing:.14em;text-transform:uppercase;font:8pt/1.3 Arial,sans-serif;color:${accent}}
-  blockquote{font-style:italic;margin:.35in auto;max-width:4.3in}.toc h2,.recipe-page h2{font-size:25pt;color:${accent};margin:.08in 0 .18in}.toc ol{padding:0;list-style:none}.toc li{display:flex;justify-content:space-between;border-bottom:1px dotted #aaa;padding:.08in 0}
-  .recipe-page header{border-bottom:1px solid #cdbfae;margin-bottom:.18in}.summary{font-size:12pt;font-style:italic}.origin{font:9pt Arial,sans-serif;color:#675b50}.recipe-page h3{font:700 9pt Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:${accent};margin:.2in 0 .08in}
-  .ingredients{columns:2;gap:.25in;padding-left:.2in}.steps{list-style:none;padding:0}.steps li{display:flex;gap:.12in;margin:.1in 0}.step-number{display:grid;place-items:center;flex:0 0 .24in;height:.24in;border-radius:50%;background:${accent};color:white;font:8pt Arial}
-  .story{border-left:3px solid ${accent};padding-left:.14in}.sealed{border:2px solid ${accent};padding:.15in;background:#fff7ee}.sealed h3{margin-top:0}.recipe-page footer{margin-top:.22in;border-top:1px solid #ddd;padding-top:.08in;font:8pt Arial;color:#766}
-  .notice{margin-top:.4in;padding:.15in;border:1px solid #b33;color:#711;font:9pt Arial}`;
-}
-
-export function recipeShareText(recipe, includeSecret = false, secretText = "") {
-  const lines = [`${recipe.title}`, recipe.summary, "", "Ingredients", ...recipe.ingredients.map(v => `• ${v}`), "", "Method", ...recipe.steps.map((v,i) => `${i+1}. ${v}`)];
-  if (includeSecret && secretText) lines.push("", "SEALED NOTE — shared intentionally", secretText);
-  lines.push("", "Preserved with Mangrok"); return lines.filter(value => value !== undefined).join("\n");
-}
+import { GENERATED_IMAGES as IMG } from "./generated-images.js";
+const ART={ingredients:IMG.ingredients,equipment:IMG.equipment,alchemy:IMG.hero,insights:IMG.insights,evolution:IMG.evolution};
+export function escapeHtml(value){return String(value??"").replace(/[&<>'"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"})[c])}
+export function assertSecretApproval(includeSecrets,approvedAt){if(includeSecrets&&!approvedAt)throw new Error("Confirm that sealed notes may appear in this irreversible print output.")}
+export function buildBookHtml({title,dedication="",theme="heritage",recipes=[],includeSecrets=false,secretApprovalAt=null,unlockedSecrets={},decorations=[]}){assertSecretApproval(includeSecrets,secretApprovalAt);const art=[...new Set((decorations||[]).map(String))].filter(id=>ART[id]).slice(0,4),toc=recipes.map((r,i)=>`<li><span>${escapeHtml(r.title)}</span><span>${i+1}</span></li>`).join("");const pages=recipes.map((r,i)=>{const secret=includeSecrets?unlockedSecrets[r.id]:"",origin=[r.origin?.creator,r.origin?.place,r.origin?.year].filter(Boolean).map(escapeHtml).join(" · "),decor=art.length?ART[art[i%art.length]]:"";return`<article class="recipe-page">${decor?`<img class="page-art" src="${decor}" alt="">`:""}<header><p class="eyebrow">Recipe ${i+1} · ${escapeHtml(PRIVACY[r.privacy]||r.privacy)}</p><h2>${escapeHtml(r.title)}</h2>${r.summary?`<p class="summary">${escapeHtml(r.summary)}</p>`:""}${origin?`<p class="origin">${origin}</p>`:""}</header><section><h3>Ingredients</h3><ul class="ingredients">${r.ingredients.map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul></section><section><h3>Method</h3><ol class="steps">${r.steps.map((x,n)=>`<li><span class="step-number">${n+1}</span>${escapeHtml(x)}</li>`).join("")}</ol></section>${r.origin?.story?`<section class="story"><h3>Story & lineage</h3><p>${escapeHtml(r.origin.story).replaceAll("\n","<br>")}</p></section>`:""}${secret?`<aside class="sealed"><h3>Sealed note — intentionally printed</h3><p>${escapeHtml(secret).replaceAll("\n","<br>")}</p></aside>`:""}<footer>${escapeHtml(r.origin?.custodian?`Custodian: ${r.origin.custodian}`:"Preserved with Mangrok")}</footer></article>`}).join("");return`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>${css(theme)}</style></head><body><section class="cover"><div><p>Mangrok private edition</p><h1>${escapeHtml(title)}</h1>${dedication?`<blockquote>${escapeHtml(dedication)}</blockquote>`:""}<small>${recipes.length} preserved recipe${recipes.length===1?"":"s"}</small></div><div class="cover-art">${art.map(id=>`<img src="${ART[id]}" alt="">`).join("")}</div></section><section class="toc"><h2>Contents</h2><ol>${toc}</ol><p class="notice">Printed information cannot be revoked. Handle sealed notes with care.</p></section>${pages}</body></html>`}
+function css(theme){const p=theme==="modern"?{a:"#335c67",p:"#fff",i:"#1e282b"}:theme==="botanical"?{a:"#456b4d",p:"#fbf8ec",i:"#222119"}:theme==="pastel"?{a:"#b44f75",p:"#fff5f5",i:"#33222c"}:theme==="midnight"?{a:"#d4a74c",p:"#181310",i:"#f7ead6"}:{a:"#8a4a32",p:"#fffdf8",i:"#201c18"};return`@page{size:6in 9in;margin:.55in .55in .65in}@media print{.cover,.toc,.recipe-page{break-after:page}.recipe-page:last-child{break-after:auto}}*{box-sizing:border-box}body{margin:0;color:${p.i};font:11pt/1.5 Georgia,serif;background:${p.p}}.cover,.toc,.recipe-page{position:relative;min-height:7.8in;padding:.08in;overflow:hidden}.cover{display:grid;place-items:center;text-align:center;border:3px double ${p.a}}.cover>div:first-child{position:relative;z-index:2;max-width:4.6in}.cover h1{font-size:34pt;line-height:1.05;margin:.25in 0}.cover p,.eyebrow{letter-spacing:.14em;text-transform:uppercase;font:8pt Arial;color:${p.a}}blockquote{font-style:italic}.toc h2,.recipe-page h2{font-size:25pt;color:${p.a}}.toc ol{padding:0;list-style:none}.toc li{display:flex;justify-content:space-between;border-bottom:1px dotted #aaa;padding:.08in 0}.recipe-page header{position:relative;z-index:2;border-bottom:1px solid #cdbfae}.recipe-page h3{font:700 9pt Arial;letter-spacing:.1em;text-transform:uppercase;color:${p.a}}.ingredients{columns:2}.steps{list-style:none;padding:0}.steps li{display:flex;gap:.12in;margin:.1in 0}.step-number{display:grid;place-items:center;flex:0 0 .24in;height:.24in;border-radius:50%;background:${p.a};color:white;font:8pt Arial}.story{border-left:3px solid ${p.a};padding-left:.14in}.sealed{border:2px solid ${p.a};padding:.15in}.notice{padding:.15in;border:1px solid #b33}.cover-art{position:absolute;inset:0}.cover-art img{position:absolute;width:1.35in;height:1.35in;object-fit:cover;border-radius:50%;filter:drop-shadow(0 .08in .08in rgba(40,24,14,.2))}.cover-art img:nth-child(1){left:-.25in;top:-.2in}.cover-art img:nth-child(2){right:-.25in;top:.6in}.cover-art img:nth-child(3){left:-.2in;bottom:.7in}.cover-art img:nth-child(4){right:-.25in;bottom:-.15in}.page-art{position:absolute;right:-.2in;top:-.12in;width:1.2in;height:1.2in;object-fit:cover;border-radius:50%;opacity:.2}`}
+export function recipeShareText(recipe,includeSecret=false,secretText=""){const lines=[recipe.title,recipe.summary,"","Ingredients",...recipe.ingredients.map(v=>`• ${v}`),"","Method",...recipe.steps.map((v,i)=>`${i+1}. ${v}`)];if(includeSecret&&secretText)lines.push("","SEALED NOTE — shared intentionally",secretText);lines.push("","Preserved with Mangrok");return lines.filter(v=>v!==undefined).join("\n")}

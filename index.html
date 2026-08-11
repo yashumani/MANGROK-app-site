@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#143d33">
-  <meta name="description" content="Mangrok is a private, permission-aware vault for recipes too valuable to lose and too personal to publish carelessly.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://esm.sh https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
-  <title>Mangrok — Secret Recipe Vault</title>
+  <meta name="description" content="Mangrok is an AI culinary discovery lab, private recipe vault, and illustrated cookbook studio.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://esm.sh https://esm.run; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://esm.sh https://esm.run https://*.supabase.co wss://*.supabase.co http://127.0.0.1:11434 http://localhost:11434; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+  <title>Mangrok — AI Culinary Alchemy & Recipe Studio</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/mangrok-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -19,11 +19,11 @@
         <img src="assets/mangrok-mark.svg" alt=""><span><strong>Mangrok</strong><small>Secret Recipe Vault</small></span>
       </a>
       <nav class="nav-list">
-        <button class="nav-item active" data-view="vault"><span aria-hidden="true">⌂</span>Vault</button>
-        <button class="nav-item" data-view="circles"><span aria-hidden="true">◎</span>Trusted circles</button>
-        <button class="nav-item" data-view="print"><span aria-hidden="true">▤</span>Print studio</button>
-        <button class="nav-item" data-view="legacy"><span aria-hidden="true">◇</span>Legacy</button>
-        <button class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span>Settings</button>
+        <button class="nav-item active" data-view="vault">Vault</button>
+        <button class="nav-item" data-view="circles">Trusted circles</button>
+        <button class="nav-item" data-view="print">Print studio</button>
+        <button class="nav-item" data-view="legacy">Legacy</button>
+        <button class="nav-item" data-view="settings">Settings</button>
       </nav>
       <div class="privacy-card">
         <span class="status-dot" id="mode-dot"></span>
@@ -35,13 +35,14 @@
     <div class="workspace">
       <header class="topbar">
         <div>
+          <p class="topbar-product-name">Mangrok</p>
           <p class="eyebrow" id="view-eyebrow">Your private collection</p>
           <h1 id="view-title">Recipe vault</h1>
         </div>
         <div class="top-actions">
-          <button class="icon-button" id="notifications-button" aria-label="Notifications"><span aria-hidden="true">♢</span><b id="notification-count" hidden>0</b></button>
+          <button class="button ghost" id="notifications-button" aria-label="Activity">Activity<b id="notification-count" hidden>0</b></button>
           <button class="button ghost" id="auth-button">Connect cloud</button>
-          <button class="button primary" id="new-recipe-button"><span aria-hidden="true">＋</span>New recipe</button>
+          <button class="button primary" id="new-recipe-button">New recipe</button>
         </div>
       </header>
 
@@ -58,13 +59,13 @@
           </div>
 
           <div class="toolbar" aria-label="Recipe filters">
-            <label class="search-field"><span class="sr-only">Search recipes</span><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Search recipes, people, places…"></label>
+            <label class="search-field"><span class="sr-only">Search recipes</span><input id="search-input" type="search" placeholder="Search recipes, people, places…"></label>
             <select id="privacy-filter" aria-label="Filter by privacy"><option value="all">All access levels</option><option value="private">Only me</option><option value="family">Family vault</option><option value="trusted">Trusted circle</option><option value="open">Open recipe</option></select>
             <select id="sort-select" aria-label="Sort recipes"><option value="updated">Recently updated</option><option value="title">Title A–Z</option><option value="oldest">Oldest update</option></select>
             <label class="check-pill"><input id="favorites-filter" type="checkbox">Favorites</label>
           </div>
           <div class="recipe-grid" id="recipe-grid" aria-live="polite"></div>
-          <div class="empty-state" id="empty-state" hidden><div class="empty-mark">✦</div><h2>Your vault is ready</h2><p>Add the first recipe, including its story and optional sealed note.</p><button class="button primary" data-action="new-recipe">Add a recipe</button></div>
+          <div class="empty-state" id="empty-state" hidden><h2>Your vault is ready</h2><p>Add the first recipe, including its story and optional sealed note.</p><button class="button primary" data-action="new-recipe">Add a recipe</button></div>
         </section>
 
         <section class="view" id="view-circles" data-view-panel="circles">
@@ -116,7 +117,7 @@
             <section class="panel"><h3>Privacy screen</h3><p>Hide the interface from casual viewing. This is not encryption or account security.</p><button class="button secondary" id="cover-button">Cover screen</button></section>
             <section class="panel danger-panel"><h3>Account and deletion</h3><p>Cloud users may request deletion with a cooling-off period. Device-only users can erase local data immediately.</p><button class="button danger" id="delete-account-button">Delete / erase data</button></section>
           </div>
-          <footer class="legal-links"><a href="legal/privacy.html">Privacy notice</a><a href="legal/terms.html">Terms</a><a href="SECURITY.md">Security</a><span>Mangrok v2.0</span></footer>
+          <footer class="legal-links"><a href="legal/privacy.html">Privacy notice</a><a href="legal/terms.html">Terms</a><a href="SECURITY.md">Security</a><span>Mangrok Alchemy Alpha</span></footer>
         </section>
       </main>
     </div>
@@ -128,7 +129,7 @@
 
   <dialog id="recipe-dialog" class="modal wide-modal">
     <form method="dialog" class="modal-shell" id="recipe-form">
-      <header><div><p class="eyebrow">Preserve a recipe</p><h2 id="recipe-dialog-title">New recipe</h2></div><button class="icon-button close-button" value="cancel" aria-label="Close">×</button></header>
+      <header><div><p class="eyebrow">Preserve a recipe</p><h2 id="recipe-dialog-title">New recipe</h2></div><button class="button ghost close-button" value="cancel" aria-label="Close">Close</button></header>
       <input name="id" type="hidden"><div class="form-grid">
         <label class="span-2">Recipe title<input name="title" required maxlength="180" autocomplete="off"></label>
         <label class="span-2">Short description<textarea name="summary" rows="2" maxlength="1200"></textarea></label>
@@ -153,11 +154,11 @@
     </form>
   </dialog>
 
-  <dialog id="viewer-dialog" class="modal wide-modal"><div class="modal-shell"><header><div><p class="eyebrow" id="viewer-privacy"></p><h2 id="viewer-title"></h2></div><button class="icon-button close-button" data-close="viewer-dialog" aria-label="Close">×</button></header><div id="viewer-content"></div><footer class="wrap-footer"><button class="button ghost" id="viewer-history">History</button><button class="button ghost" id="viewer-share">Share</button><button class="button secondary" id="viewer-unlock">Unlock secret</button><button class="button secondary" id="viewer-edit">Edit</button><button class="button danger ghost" id="viewer-delete">Delete</button></footer></div></dialog>
-  <dialog id="circle-dialog" class="modal"><form method="dialog" class="modal-shell" id="circle-form"><header><div><p class="eyebrow">Trusted people</p><h2>Circle</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></header><input name="id" type="hidden"><label>Circle name<input name="name" required></label><label>Description<textarea name="description" rows="2"></textarea></label><label>Members <small>One email per line; append | contributor | secret</small><textarea name="members" rows="7" placeholder="alex@example.com | viewer\nsam@example.com | contributor | secret"></textarea></label><footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="save">Save circle</button></footer></form></dialog>
-  <dialog id="auth-dialog" class="modal"><form method="dialog" class="modal-shell" id="auth-form"><header><div><p class="eyebrow">Secure synchronization</p><h2>Connect your vault</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></header><div id="auth-content"><p>Enter your email to receive a secure sign-in link. Device recipes remain available even without cloud configuration.</p><label>Email<input name="email" type="email" required autocomplete="email"></label></div><p class="form-error" id="auth-error"></p><footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="signin">Send sign-in link</button></footer></form></dialog>
-  <dialog id="history-dialog" class="modal"><div class="modal-shell"><header><div><p class="eyebrow">Audit trail</p><h2>Recipe history</h2></div><button class="icon-button" data-close="history-dialog" aria-label="Close">×</button></header><div id="history-list" class="stack-list"></div></div></dialog>
-  <dialog id="notifications-dialog" class="modal"><div class="modal-shell"><header><div><p class="eyebrow">Activity</p><h2>Notifications</h2></div><button class="icon-button" data-close="notifications-dialog" aria-label="Close">×</button></header><div id="notifications-list" class="stack-list"></div></div></dialog>
+  <dialog id="viewer-dialog" class="modal wide-modal"><div class="modal-shell"><header><div><p class="eyebrow" id="viewer-privacy"></p><h2 id="viewer-title"></h2></div><button class="button ghost close-button" data-close="viewer-dialog" aria-label="Close">Close</button></header><div id="viewer-content"></div><footer class="wrap-footer"><button class="button ghost" id="viewer-history">History</button><button class="button ghost" id="viewer-share">Share</button><button class="button secondary" id="viewer-unlock">Unlock secret</button><button class="button secondary" id="viewer-edit">Edit</button><button class="button danger ghost" id="viewer-delete">Delete</button></footer></div></dialog>
+  <dialog id="circle-dialog" class="modal"><form method="dialog" class="modal-shell" id="circle-form"><header><div><p class="eyebrow">Trusted people</p><h2>Circle</h2></div><button class="button ghost" value="cancel" aria-label="Close">Close</button></header><input name="id" type="hidden"><label>Circle name<input name="name" required></label><label>Description<textarea name="description" rows="2"></textarea></label><label>Members <small>One email per line; append | contributor | secret</small><textarea name="members" rows="7" placeholder="alex@example.com | viewer\nsam@example.com | contributor | secret"></textarea></label><footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="save">Save circle</button></footer></form></dialog>
+  <dialog id="auth-dialog" class="modal"><form method="dialog" class="modal-shell" id="auth-form"><header><div><p class="eyebrow">Secure synchronization</p><h2>Connect your vault</h2></div><button class="button ghost" value="cancel" aria-label="Close">Close</button></header><div id="auth-content"><p>Enter your email to receive a secure sign-in link. Device recipes remain available even without cloud configuration.</p><label>Email<input name="email" type="email" required autocomplete="email"></label></div><p class="form-error" id="auth-error"></p><footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="signin">Send sign-in link</button></footer></form></dialog>
+  <dialog id="history-dialog" class="modal"><div class="modal-shell"><header><div><p class="eyebrow">Audit trail</p><h2>Recipe history</h2></div><button class="button ghost" data-close="history-dialog" aria-label="Close">Close</button></header><div id="history-list" class="stack-list"></div></div></dialog>
+  <dialog id="notifications-dialog" class="modal"><div class="modal-shell"><header><div><p class="eyebrow">Activity</p><h2>Notifications</h2></div><button class="button ghost" data-close="notifications-dialog" aria-label="Close">Close</button></header><div id="notifications-list" class="stack-list"></div></div></dialog>
   <dialog id="screen-cover" class="screen-cover"><form method="dialog"><img src="assets/mangrok-mark.svg" alt=""><h2>Vault covered</h2><p>Open again when the screen is private.</p><button class="button primary">Open Mangrok</button></form></dialog>
   <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 

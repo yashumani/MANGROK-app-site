@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+<title id="title">Mangrok Alchemy culinary studio</title><desc id="desc">Original Mangrok culinary illustration</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff8f4"/><stop offset="0.48" stop-color="#f7eaf1"/><stop offset="1" stop-color="#e7e9f8"/></linearGradient>
+  <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fffdf9"/><stop offset="1" stop-color="#f5e9e4"/></linearGradient>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#edf0f2"/><stop offset="0.45" stop-color="#8e969d"/><stop offset="0.65" stop-color="#f6f7f7"/><stop offset="1" stop-color="#59626a"/></linearGradient>
+  <linearGradient id="copper" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd0a8"/><stop offset="0.5" stop-color="#c6754a"/><stop offset="1" stop-color="#7b3e2b"/></linearGradient>
+  <linearGradient id="green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a4c89d"/><stop offset="1" stop-color="#3e7058"/></linearGradient>
+  <linearGradient id="tomato" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb194"/><stop offset="1" stop-color="#c95355"/></linearGradient>
+  <linearGradient id="sauce" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#efa77c"/><stop offset="1" stop-color="#8f3541"/></linearGradient>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#553445" flood-opacity=".17"/></filter>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
+  <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" seed="4" result="noise"/><feColorMatrix in="noise" type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="0 .05"/></feComponentTransfer></filter>
+  <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.2" fill="#8b647c" opacity=".12"/></pattern>
+</defs>
+<rect width="1600" height="1000" fill="url(#bg)"/><rect width="1600" height="1000" fill="url(#dots)"/>
+
+<ellipse cx="1260" cy="168" rx="250" ry="150" fill="#f8cbd7" opacity=".48" filter="url(#soft)"/>
+<ellipse cx="274" cy="250" rx="250" ry="180" fill="#cfdae8" opacity=".65" filter="url(#soft)"/>
+<path d="M0 710C270 648 498 690 760 720c285 33 533-58 840-24v304H0Z" fill="#d7c6d4" opacity=".52"/>
+<g filter="url(#shadow)"><rect x="116" y="154" width="1368" height="690" rx="56" fill="url(#paper)" stroke="#fff" stroke-width="5"/></g>
+<path d="M116 322h1368" stroke="#d7b5c5" stroke-width="3"/><path d="M920 154v690" stroke="#dac4d1" stroke-width="3"/>
+<g opacity=".74"><path d="M180 268c95-105 184-110 269-12" fill="none" stroke="#627968" stroke-width="14" stroke-linecap="round"/><path d="M224 266c-32-85-8-145 60-180" fill="none" stroke="#7c957e" stroke-width="10"/><path d="M295 217c-7-74 35-122 101-142" fill="none" stroke="#7c957e" stroke-width="10"/><ellipse cx="205" cy="184" rx="34" ry="18" fill="#9bb297" transform="rotate(-35 205 184)"/><ellipse cx="346" cy="141" rx="40" ry="20" fill="#819f80" transform="rotate(28 346 141)"/></g>
+<g transform="translate(985 210)"><rect x="0" y="0" width="402" height="92" rx="26" fill="#fff" opacity=".83"/><text x="32" y="39" font-family="Georgia,serif" font-size="26" fill="#5d4054" letter-spacing="4">MANGROK ALCHEMY</text><text x="32" y="69" font-family="Arial,sans-serif" font-size="14" fill="#8f7185" letter-spacing="2">CREATE · SIMULATE · EVOLVE · PRESERVE</text></g>
+<g transform="translate(210 420)" filter="url(#shadow)"><ellipse cx="290" cy="350" rx="330" ry="68" fill="#855c69" opacity=".18"/><path d="M105 118h360l-32 278c-7 61-53 105-110 105H247c-57 0-104-44-111-105Z" fill="url(#copper)" stroke="#7d4538" stroke-width="6"/><ellipse cx="285" cy="117" rx="180" ry="52" fill="#5f3d3f"/><ellipse cx="285" cy="111" rx="157" ry="39" fill="url(#sauce)"/><path d="M76 173H8c-39 0-39 78 0 78h78" fill="none" stroke="#8d5548" stroke-width="30" stroke-linecap="round"/><path d="M494 173h68c39 0 39 78 0 78h-78" fill="none" stroke="#8d5548" stroke-width="30" stroke-linecap="round"/><path d="M209 118c12-58 46-74 88-125M289 112c-6-64 32-105 85-133M357 118c26-43 67-55 105-84" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" opacity=".55"/>
+<g fill="#f3d286"><ellipse cx="223" cy="104" rx="34" ry="17"/><ellipse cx="321" cy="119" rx="39" ry="18"/><ellipse cx="390" cy="99" rx="28" ry="14"/></g><g fill="#5d7c5d"><path d="M246 97c-15-42 15-58 42-42-4 30-19 46-42 42Z"/><path d="M363 89c-10-36 20-52 47-31-8 28-24 39-47 31Z"/></g></g>
+<g transform="translate(930 365)"><rect x="0" y="0" width="430" height="390" rx="36" fill="#fff" opacity=".86" stroke="#e3cad6" stroke-width="3"/><text x="35" y="54" font-family="Georgia,serif" font-size="28" fill="#5d4054">Live culinary formula</text><text x="35" y="89" font-family="Arial,sans-serif" font-size="15" fill="#8d7184">Flavor, texture, technique and risk evolve together.</text>
+<g transform="translate(34 130)"><rect width="362" height="62" rx="18" fill="#f6eaf0"/><circle cx="36" cy="31" r="17" fill="url(#tomato)"/><text x="68" y="28" font-family="Arial,sans-serif" font-size="14" fill="#5d4054">INGREDIENT SYNERGY</text><rect x="68" y="38" width="255" height="8" rx="4" fill="#dfced8"/><rect x="68" y="38" width="214" height="8" rx="4" fill="#9f6e89"/></g>
+<g transform="translate(34 210)"><rect width="362" height="62" rx="18" fill="#edf2ec"/><circle cx="36" cy="31" r="17" fill="url(#green)"/><text x="68" y="28" font-family="Arial,sans-serif" font-size="14" fill="#4d6557">TECHNIQUE FIT</text><rect x="68" y="38" width="255" height="8" rx="4" fill="#d5e1d4"/><rect x="68" y="38" width="232" height="8" rx="4" fill="#6f9578"/></g>
+<g transform="translate(34 290)"><rect width="362" height="62" rx="18" fill="#f7eee5"/><circle cx="36" cy="31" r="17" fill="#d79669"/><text x="68" y="28" font-family="Arial,sans-serif" font-size="14" fill="#76533e">EXPECTED CONFIDENCE</text><text x="302" y="40" font-family="Georgia,serif" font-size="28" fill="#76533e">86%</text></g></g>
+
+<rect width="1600" height="1000" filter="url(#grain)" opacity=".7"/>
+</svg>
