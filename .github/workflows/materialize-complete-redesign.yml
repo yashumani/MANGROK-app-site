@@ -26,6 +26,7 @@ jobs:
           cat .redesign-payload/chunk-* | base64 --decode > /tmp/mangrok-redesign.zip
           echo "59337f3875975ca1a65764281eb0a7b46df15a7577b6212800fbfc578a602ae2  /tmp/mangrok-redesign.zip" | sha256sum --check -
           unzip -o /tmp/mangrok-redesign.zip
+          sed -i 's/\.webp/\.svg/g' scripts/validate.mjs sw.js src/generated-images.js
           rm -f /tmp/mangrok-redesign.zip
           rm -rf .redesign-payload .materialize .alchemy-source .alchemy-transfer
           rm -f ALCHEMY_TRANSPORT_STATUS.md
