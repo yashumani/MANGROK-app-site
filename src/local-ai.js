@@ -29,7 +29,8 @@ export async function enhanceWithLocalAI({
   provider = "rules",
   config = globalThis.window?.MANGROK_CONFIG || {},
   onProgress = () => {},
-  requestId = cryptoRandomId()
+  requestId = cryptoRandomId(),
+  signal = null
 }) {
   if (provider === "rules") {
     return {
@@ -42,6 +43,7 @@ export async function enhanceWithLocalAI({
     };
   }
 
+  throwIfAborted(signal);
   const messages = buildAlchemyPrompt(input, simulation);
   const startedAt = performanceNow();
   let completionText = "";
@@ -52,13 +54,16 @@ export async function enhanceWithLocalAI({
 
   if (provider === "webllm") {
     model = String(config.webllmModel || DEFAULT_WEBLLM_MODEL);
-    completionText = await runWebLLM(messages, model, onProgress);
+    completionText = await runWebLLM(messages, model, onProgress, signal);
   } else if (provider === "gateway") {
+    onProgress({ text: "Checking subscriber access and contacting the private model.", progress: 28 });
     const payload = await runMangrokGateway({
       messages,
       requestId,
-      timeoutMs: Number(config.aiGatewayTimeoutMs) || 65_000
+      timeoutMs: Number(config.aiGatewayTimeoutMs) || 65_000,
+      signal
     });
+    onProgress({ text: "The private model responded. Validating the structured insight.", progress: 92 });
     completionText = extractCompletionText(payload?.completion ?? payload);
     model = String(payload?.model || config.aiGatewayModel || "Mangrok private model");
     entitlement = payload?.entitlement || null;
@@ -66,15 +71,20 @@ export async function enhanceWithLocalAI({
     latencyMs = finiteOrNull(payload?.latencyMs);
   } else {
     model = String(config.ollamaModel || "llama3.2");
+    onProgress({ text: "Contacting the self-hosted model and sending the structured recipe formula.", progress: 28 });
     completionText = await runOpenAICompatible({
       baseUrl: config.ollamaBaseUrl || "http://127.0.0.1:11434/v1",
       model,
       messages,
       authorization: "",
-      timeoutMs: Number(config.localAiTimeoutMs) || DEFAULT_LOCAL_AI_TIMEOUT_MS
+      timeoutMs: Number(config.localAiTimeoutMs) || DEFAULT_LOCAL_AI_TIMEOUT_MS,
+      signal
     });
+    onProgress({ text: "The self-hosted model responded. Validating the structured insight.", progress: 92 });
   }
 
+  throwIfAborted(signal);
+  onProgress({ text: "Merging AI reasoning with the deterministic culinary simulation.", progress: 96 });
   const structured = parseStructuredResponse(completionText);
   return {
     result: mergeAIInsight(simulation, structured),
@@ -86,18 +96,27 @@ export async function enhanceWithLocalAI({
   };
 }
 
-async function runWebLLM(messages, model, onProgress) {
+async function runWebLLM(messages, model, onProgress, signal) {
   if (!globalThis.navigator?.gpu) throw new Error("On-device AI requires a WebGPU-capable browser and device.");
+  throwIfAborted(signal);
+  onProgress({ text: "Loading the WebLLM runtime on this device.", progress: 22 });
 
   if (!enginePromise || loadedModel !== model) {
     loadedModel = model;
     enginePromise = import("https://esm.run/@mlc-ai/web-llm")
-      .then(webllm => webllm.CreateMLCEngine(model, {
-        initProgressCallback: progress => onProgress({
-          progress: Number.isFinite(Number(progress?.progress)) ? Math.round(Number(progress.progress) * 100) : null,
-          text: String(progress?.text || "Preparing the on-device model.")
-        })
-      }))
+      .then(webllm => {
+        throwIfAborted(signal);
+        return webllm.CreateMLCEngine(model, {
+          initProgressCallback: progress => {
+            const raw = Number(progress?.progress);
+            const mapped = Number.isFinite(raw) ? Math.round(24 + Math.max(0, Math.min(1, raw)) * 58) : null;
+            onProgress({
+              progress: mapped,
+              text: String(progress?.text || "Downloading and preparing the on-device model.")
+            });
+          }
+        });
+      })
       .catch(error => {
         enginePromise = null;
         loadedModel = "";
@@ -106,7 +125,8 @@ async function runWebLLM(messages, model, onProgress) {
   }
 
   const engine = await enginePromise;
-  onProgress({ text: "The on-device model is refining the recipe.", progress: 92 });
+  throwIfAborted(signal);
+  onProgress({ text: "The on-device model is reasoning through flavor, technique, and risk.", progress: 86 });
   const value = await engine.chat.completions.create({
     messages,
     temperature: 0.25,
@@ -114,6 +134,8 @@ async function runWebLLM(messages, model, onProgress) {
     response_format: { type: "json_object" },
     stream: false
   });
+  throwIfAborted(signal);
+  onProgress({ text: "The on-device model responded. Validating the structured insight.", progress: 94 });
   return extractCompletionText(value);
 }
 
@@ -123,11 +145,15 @@ export async function runOpenAICompatible({
   messages,
   authorization = "",
   timeoutMs = DEFAULT_LOCAL_AI_TIMEOUT_MS,
-  fetchImpl = globalThis.fetch
+  fetchImpl = globalThis.fetch,
+  signal = null
 }) {
   if (typeof fetchImpl !== "function") throw new Error("This environment cannot contact a local AI endpoint.");
   const { chat } = resolveOpenAIEndpoints(baseUrl);
   const controller = new AbortController();
+  const abortFromCaller = () => controller.abort(signal?.reason || new DOMException("AI request cancelled.", "AbortError"));
+  if (signal?.aborted) abortFromCaller();
+  else signal?.addEventListener?.("abort", abortFromCaller, { once: true });
   const timeout = setTimeout(() => controller.abort(new DOMException("AI request timed out.", "TimeoutError")), clampTimeout(timeoutMs));
 
   try {
@@ -165,12 +191,14 @@ export async function runOpenAICompatible({
     if (!output) throw new Error("The local AI endpoint returned no completion text.");
     return output;
   } catch (error) {
+    if (signal?.aborted) throw signal.reason instanceof Error ? signal.reason : new DOMException("AI request cancelled.", "AbortError");
     if (error?.name === "AbortError" || error?.name === "TimeoutError") {
       throw new Error(`The local AI endpoint did not respond within ${Math.round(clampTimeout(timeoutMs) / 1000)} seconds.`);
     }
     throw error;
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener?.("abort", abortFromCaller);
   }
 }
 
@@ -279,23 +307,28 @@ export function extractCompletionText(payload) {
   ).trim();
 }
 
-async function runMangrokGateway({ messages, requestId, timeoutMs }) {
+async function runMangrokGateway({ messages, requestId, timeoutMs, signal }) {
+  throwIfAborted(signal);
   const bridgeTimeout = Math.min(130_000, Math.max(15_000, Number(timeoutMs) || 65_000) + 5_000);
-  const result = await requestBridge("mangrok:invoke-alchemy-gateway", { messages, requestId }, bridgeTimeout);
+  const result = await requestBridge("mangrok:invoke-alchemy-gateway", { messages, requestId }, bridgeTimeout, signal);
   if (!result) throw new Error("The Mangrok subscriber gateway is not connected to this application session.");
   return result;
 }
 
-function requestBridge(name, payload, timeoutMs) {
+function requestBridge(name, payload, timeoutMs, signal = null) {
   if (!globalThis.window || typeof globalThis.CustomEvent !== "function") return Promise.resolve(null);
   return new Promise((resolve, reject) => {
     let settled = false;
+    const onAbort = () => finish(reject, signal?.reason || new DOMException("AI request cancelled.", "AbortError"));
     const finish = (handler, value) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
+      signal?.removeEventListener?.("abort", onAbort);
       handler(value);
     };
+    if (signal?.aborted) return onAbort();
+    signal?.addEventListener?.("abort", onAbort, { once: true });
     const timeout = setTimeout(() => finish(reject, new Error("The Mangrok application bridge did not respond.")), timeoutMs);
     window.dispatchEvent(new CustomEvent(name, {
       detail: {
@@ -336,6 +369,13 @@ function safeErrorMessage(text) {
 function clampTimeout(value, minimum = 5_000, maximum = 120_000) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, Math.round(parsed))) : DEFAULT_LOCAL_AI_TIMEOUT_MS;
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  const reason = signal.reason;
+  if (reason instanceof Error) throw reason;
+  throw new DOMException("AI request cancelled.", "AbortError");
 }
 
 function finiteOrNull(value) {

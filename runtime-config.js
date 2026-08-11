@@ -1,6 +1,6 @@
 /** Public runtime configuration. Never place service-role, payment, or private model credentials here. */
 window.MANGROK_CONFIG = Object.freeze({
-  appVersion: "3.1.0-alpha.2",
+  appVersion: "3.2.0-alpha.3",
   supabaseUrl: "",
   supabaseAnonKey: "",
   printFunctionName: "print-order",

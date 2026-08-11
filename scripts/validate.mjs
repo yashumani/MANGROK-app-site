@@ -19,6 +19,11 @@ const required = [
 for (const file of required) await access(path.join(root, file));
 JSON.parse(await readFile(path.join(root, "manifest.webmanifest"), "utf8"));
 
+for (const file of required.filter(file => file.startsWith("assets/generated/") && file.endsWith(".svg"))) {
+  const svg = await readFile(path.join(root, file), "utf8");
+  assertSvgWellFormed(svg, file);
+}
+
 for (const file of (await walk(path.join(root, "src"))).filter(file => file.endsWith(".js"))) {
   execFileSync(process.execPath, ["--check", file], { stdio: "pipe" });
 }
@@ -59,7 +64,7 @@ const serviceWorker = await readFile(path.join(root, "sw.js"), "utf8");
 for (const phrase of ["appVersion", "alchemyFunctionName", "src/readiness.js", "src/entitlements.js"]) {
   if (!runtime.includes(phrase) && !serviceWorker.includes(phrase)) throw new Error(`Missing production-readiness contract: ${phrase}`);
 }
-if (!/mangrok-v5-production-readiness/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the readiness release.");
+if (!/mangrok-v6-mobile-progress/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the mobile progress release.");
 
 const alchemyFunction = await readFile(path.join(root, "supabase/functions/alchemy-ai/index.ts"), "utf8");
 for (const phrase of ["p_request_id", "refund_alchemy_credit", "model_gateway_timeout", "origin_not_allowed"]) {
@@ -67,6 +72,22 @@ for (const phrase of ["p_request_id", "refund_alchemy_credit", "model_gateway_ti
 }
 
 console.log("Mangrok Alchemy static validation passed.");
+
+function assertSvgWellFormed(svg, file) {
+  const stack = [];
+  const tokens = String(svg).match(/<\/?[A-Za-z][^>]*>/g) || [];
+  for (const token of tokens) {
+    if (/^<\//.test(token)) {
+      const name = token.match(/^<\/([A-Za-z][\w:-]*)/)?.[1];
+      const open = stack.pop();
+      if (!name || open !== name) throw new Error(`Malformed SVG ${file}: expected </${open || "none"}> but found </${name || "unknown"}>.`);
+    } else if (!/\/>$/.test(token)) {
+      const name = token.match(/^<([A-Za-z][\w:-]*)/)?.[1];
+      if (name) stack.push(name);
+    }
+  }
+  if (stack.length) throw new Error(`Malformed SVG ${file}: unclosed <${stack.at(-1)}>.`);
+}
 
 async function walk(directory) {
   const output = [];

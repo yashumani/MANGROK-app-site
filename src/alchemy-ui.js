@@ -23,7 +23,13 @@ const state = {
   settings: loadSettings(),
   appStatus: {},
   entitlement: null,
-  recentExperiments: []
+  recentExperiments: [],
+  mobileStep: "elements",
+  progressStartedAt: 0,
+  progressTimer: null,
+  progressValue: 0,
+  runController: null,
+  activeRunId: null
 };
 
 ready(init);
@@ -74,19 +80,24 @@ function addView() {
   section.className = "view alchemy-view";
   section.dataset.viewPanel = "alchemy";
   section.innerHTML = `
-    <section class="alchemy-hero">
+    <nav class="alchemy-mobile-steps" aria-label="Alchemy workflow">
+      <button type="button" data-alchemy-step="elements" class="active"><span>1</span>Elements</button>
+      <button type="button" data-alchemy-step="formula"><span>2</span>Formula</button>
+      <button type="button" data-alchemy-step="insights"><span>3</span>Insights</button>
+    </nav>
+    <section class="alchemy-hero" data-alchemy-step-panel="elements">
       <img src="${IMG.hero}" alt="A generated cinematic cooking laboratory">
       <div><p class="eyebrow">Mangrok culinary discovery engine</p><h2>Build a dish as a living formula.</h2><p>Combine ingredients, cookware, heat, time, and technique. Mangrok predicts balance, risk, and evolution; optional local or subscriber AI can refine the assessment.</p><div id="alchemy-trials"></div></div>
     </section>
     <section class="alchemy-grid">
-      <article class="panel alchemy-library">
+      <article class="panel alchemy-library" data-alchemy-step-panel="elements">
         <header><div><p class="eyebrow">Elements</p><h3>Kitchen library</h3></div><b id="alchemy-count"></b></header>
         <div class="alchemy-tabs"><button data-mode="ingredients">Ingredients</button><button data-mode="equipment">Equipment</button></div>
         <div class="alchemy-search"><input id="alchemy-search" type="search" placeholder="Search ingredients or equipment"><select id="alchemy-category" aria-label="Filter Alchemy library"></select></div>
         <div id="alchemy-cards" class="alchemy-cards"></div>
         <div class="alchemy-custom"><input id="alchemy-custom" maxlength="80" placeholder="Custom family element"><button class="mini-button" id="alchemy-add" type="button">Add item</button></div>
       </article>
-      <article class="panel alchemy-formula">
+      <article class="panel alchemy-formula" data-alchemy-step-panel="formula">
         <header><p class="eyebrow">Formula</p><h3>Active experiment</h3></header>
         <h4>Ingredients</h4><div class="alchemy-selected" id="alchemy-selected-ingredients"></div>
         <h4>Equipment</h4><div class="alchemy-selected" id="alchemy-selected-equipment"></div>
@@ -101,20 +112,39 @@ function addView() {
           <div class="alchemy-provider-heading"><div><p class="eyebrow">Reasoning mode</p><p id="alchemy-entitlement-note"></p></div><button class="mini-button" id="alchemy-refresh-access" type="button">Refresh access</button></div>
           <div id="alchemy-providers"></div>
           <details><summary>Self-hosted model settings</summary><label>Endpoint<input id="alchemy-endpoint" value="${escapeAttribute(state.settings.url)}"></label><label>Model<input id="alchemy-model" value="${escapeAttribute(state.settings.model)}"></label><button class="mini-button" id="alchemy-save-settings" type="button">Save local settings</button></details>
-          <div id="alchemy-progress" hidden><i><b></b></i><p></p></div>
         </section>
         <div class="button-row"><button class="button primary" id="alchemy-run" type="button">Run Alchemy</button><button class="button ghost" id="alchemy-reset" type="button">Reset</button></div>
         <p class="alchemy-note">Prediction, not a physical guarantee. Verify allergens, doneness, and food-safety requirements independently.</p>
       </article>
     </section>
-    <section class="panel alchemy-preview"><div><p class="eyebrow">Live preview</p><h3>Formula balance updates as you work.</h3><p id="alchemy-preview-copy"></p></div><div id="alchemy-preview-metrics"></div></section>
-    <section id="alchemy-results" class="alchemy-results" hidden></section>
-    <section class="panel alchemy-history" id="alchemy-history" hidden><header><div><p class="eyebrow">Private account history</p><h3>Recent experiments</h3></div><button class="mini-button" type="button" id="alchemy-history-refresh">Refresh</button></header><div id="alchemy-history-list"></div></section>`;
+    <section class="alchemy-insights-stage" data-alchemy-step-panel="insights">
+      <section class="panel alchemy-preview"><div><p class="eyebrow">Live preview</p><h3>Formula balance updates as you work.</h3><p id="alchemy-preview-copy"></p></div><div id="alchemy-preview-metrics"></div></section>
+      <section id="alchemy-results" class="alchemy-results" hidden></section>
+      <section class="panel alchemy-history" id="alchemy-history" hidden><header><div><p class="eyebrow">Private account history</p><h3>Recent experiments</h3></div><button class="mini-button" type="button" id="alchemy-history-refresh">Refresh</button></header><div id="alchemy-history-list"></div></section>
+    </section>
+    <section id="alchemy-progress" class="alchemy-progress-sheet" hidden role="status" aria-live="polite" aria-atomic="true">
+      <header><div><p class="eyebrow">Alchemy is working</p><h3 id="alchemy-progress-title">Preparing your experiment</h3></div><strong id="alchemy-progress-percent">0%</strong></header>
+      <div class="alchemy-progress-track" aria-hidden="true"><b></b></div>
+      <ol class="alchemy-progress-stages" aria-label="AI progress stages">
+        <li data-progress-stage="prepare">Prepare formula</li>
+        <li data-progress-stage="model">Load or contact model</li>
+        <li data-progress-stage="reason">Reason through the recipe</li>
+        <li data-progress-stage="validate">Validate the insight</li>
+      </ol>
+      <p id="alchemy-progress-copy">Starting the culinary assessment.</p>
+      <footer><small id="alchemy-progress-time">Elapsed 0:00</small><button class="button ghost" type="button" id="alchemy-progress-dismiss" hidden>Dismiss</button><button class="button ghost" type="button" id="alchemy-cancel">Cancel</button></footer>
+    </section>`;
   main.prepend(section);
   bind(section);
 }
 
 function bind(root) {
+  root.querySelector(".alchemy-mobile-steps").addEventListener("click", event => {
+    const button = event.target.closest("[data-alchemy-step]");
+    if (button) setMobileStep(button.dataset.alchemyStep);
+  });
+  root.querySelector("#alchemy-cancel").addEventListener("click", cancelRun);
+  root.querySelector("#alchemy-progress-dismiss").addEventListener("click", hideProgress);
   root.querySelector(".alchemy-tabs").addEventListener("click", event => {
     const button = event.target.closest("[data-mode]");
     if (!button) return;
@@ -169,7 +199,8 @@ async function open() {
   document.querySelector("#view-eyebrow").textContent = "AI cooking laboratory";
   document.querySelector("#view-title").textContent = "Alchemy Lab";
   document.querySelector("#new-recipe-button").hidden = true;
-  if (location.hash !== "#alchemy") history.replaceState(null, "", "#alchemy");
+  if (location.hash !== "#alchemy") { try { history.replaceState(null, "", "#alchemy"); } catch {} }
+  setMobileStep(state.result ? "insights" : state.mobileStep, false);
   await refreshAccountState();
 }
 
@@ -187,6 +218,7 @@ function renderAll() {
   renderTrials();
   preview();
   renderHistory();
+  setMobileStep(state.mobileStep, false);
 }
 
 function renderLibrary() {
@@ -268,19 +300,24 @@ async function run() {
   if (state.provider === "gateway") {
     await refreshAccountState();
     if (!state.entitlement?.allowed) {
-      progress("A valid server-managed trial or subscription is required for the Mangrok subscriber AI.", 100, true);
+      showProgressMessage("A valid server-managed trial or subscription is required for the Mangrok subscriber AI.", true);
       return;
     }
   } else if (!readLocalTrial(localStorage, Number(configuration().alchemyTrialLimit) || 10).allowed) {
-    progress("The local Alpha trial is complete. Sign in when subscriber access is activated.", 100, true);
+    showProgressMessage("The local Alpha trial is complete. Sign in when subscriber access is activated.", true);
     return;
   }
 
   state.busy = true;
   state.experimentId = null;
+  state.runController = new AbortController();
+  state.activeRunId = randomId();
+  const runId = state.activeRunId;
   renderTrials();
-  progress("Building the culinary assessment.", 8);
+  beginProgress(state.provider);
+  progress("Reading the formula, cookware, heat, and timing.", 8);
   const base = simulateAlchemy(currentInput());
+  progress("The explainable culinary simulation is ready. Preparing AI refinement.", 18);
   const requestId = randomId();
   const startedAt = performance.now();
 
@@ -292,21 +329,36 @@ async function run() {
       provider: state.provider,
       config: configuration(),
       requestId,
+      signal: state.runController.signal,
       onProgress: value => progress(value.text || "Preparing local AI.", value.progress)
     });
+    if (runId !== state.activeRunId) return;
+    progress("Validating the model response against the culinary simulation.", 96);
     state.result = { ...enhanced.result, providerLabel: enhanced.model, requestId: enhanced.requestId, latencyMs: enhanced.latencyMs };
     localRunCompleted = state.provider !== "gateway";
     if (enhanced.entitlement) state.entitlement = normalizeAlchemyEntitlement(enhanced.entitlement, Number(configuration().alchemyTrialLimit) || 10);
   } catch (error) {
-    state.result = { ...base, providerLabel: "Mangrok culinary engine", requestId, latencyMs: Math.round(performance.now() - startedAt), fallback: error.message };
+    if (runId !== state.activeRunId) return;
+    const cancelled = state.runController?.signal.aborted || error?.name === "AbortError" || /cancel/i.test(String(error?.message || ""));
+    state.result = {
+      ...base,
+      providerLabel: "Mangrok culinary engine",
+      requestId,
+      latencyMs: Math.round(performance.now() - startedAt),
+      fallback: cancelled ? "AI refinement was cancelled; the device-side culinary simulation was preserved." : error.message
+    };
     if (error?.entitlement) state.entitlement = normalizeAlchemyEntitlement(error.entitlement, Number(configuration().alchemyTrialLimit) || 10);
-    progress(`AI refinement was unavailable; the explainable result was preserved. ${error.message}`, 100, true);
+    progress(cancelled ? "AI refinement cancelled. Showing the device-side simulation." : `AI refinement was unavailable; the explainable result was preserved. ${error.message}`, 100, !cancelled);
   }
 
   if (state.provider !== "gateway" && localRunCompleted) consumeLocalTrial(localStorage, Number(configuration().alchemyTrialLimit) || 10);
   state.busy = false;
+  state.runController = null;
+  state.activeRunId = null;
   renderTrials();
   renderResult();
+  setMobileStep("insights");
+  finishProgress(Boolean(state.result?.fallback && !/cancel/i.test(state.result.fallback)), state.result?.fallback ? "Completed with the safe fallback" : "Insight ready");
   await persistExperiment();
   if (state.provider === "gateway") await refreshAccountState();
 }
@@ -326,7 +378,8 @@ function renderResult() {
     <section class="panel alchemy-timeline"><p class="eyebrow">Cooking timeline</p><h3>Predicted evolution</h3><div>${value.stages.map((stage, index) => `<article><small>Stage ${index + 1}</small><h4>${escapeHtml(stage.name)}</h4><b>${stage.minutes} min</b><p>${escapeHtml(stage.cue)}</p></article>`).join("")}</div></section>
     <section class="alchemy-evolutions"><img src="${IMG.evolution}" alt="A generated recipe evolution scene"><div>${value.evolutions.map(item => `<article class="panel"><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.change)}</p><small>${escapeHtml(item.reason)}</small></article>`).join("")}</div></section>
     <p class="alchemy-disclaimer">${escapeHtml(value.disclaimer)}</p>`;
-  root.scrollIntoView({ behavior: "smooth", block: "start" });
+  const view = document.querySelector("#view-alchemy");
+  if (view?.scrollTo) view.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function persistExperiment() {
@@ -421,6 +474,8 @@ function reset() {
   state.result = null;
   state.experimentId = null;
   document.querySelector("#alchemy-results").hidden = true;
+  hideProgress();
+  state.mobileStep = "elements";
   renderAll();
 }
 
@@ -430,7 +485,7 @@ function saveSettings() {
     model: document.querySelector("#alchemy-model").value.trim()
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
-  progress("Local model settings saved on this device. Use Settings → System readiness to test the endpoint.", 100);
+  showProgressMessage("Local model settings saved on this device. Use Settings → System readiness to test the endpoint.");
   renderProviders();
 }
 
@@ -464,12 +519,131 @@ function exportResult() {
   setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
-function progress(text, value = 40, error = false) {
+function beginProgress(provider) {
   const root = document.querySelector("#alchemy-progress");
+  if (!root) return;
+  clearInterval(state.progressTimer);
+  state.progressStartedAt = Date.now();
+  state.progressValue = 3;
+  root.hidden = false;
+  root.classList.remove("error", "complete", "indeterminate");
+  root.classList.add("busy");
+  root.setAttribute("aria-busy", "true");
+  root.querySelector("#alchemy-progress-dismiss").hidden = true;
+  root.querySelector("#alchemy-cancel").hidden = provider === "rules";
+  root.querySelector("#alchemy-progress-title").textContent = provider === "webllm"
+    ? "Loading on-device intelligence"
+    : provider === "gateway"
+      ? "Contacting Mangrok subscriber AI"
+      : provider === "ollama"
+        ? "Contacting your local model"
+        : "Simulating the recipe";
+  updateElapsedTime();
+  state.progressTimer = setInterval(() => {
+    updateElapsedTime();
+    if (state.busy && state.progressValue < 88) {
+      state.progressValue = Math.min(88, state.progressValue + (state.progressValue < 30 ? 2 : 1));
+      const bar = document.querySelector("#alchemy-progress .alchemy-progress-track b");
+      const percent = document.querySelector("#alchemy-progress-percent");
+      if (bar) bar.style.width = `${Math.round(state.progressValue)}%`;
+      if (percent) percent.textContent = `${Math.round(state.progressValue)}%`;
+      updateProgressStages(state.progressValue);
+    }
+  }, 1_000);
+  updateProgressStages(3);
+  root.querySelector(".alchemy-progress-track b").style.width = "3%";
+  root.querySelector("#alchemy-progress-percent").textContent = "3%";
+  root.querySelector("#alchemy-progress-copy").textContent = "Starting the culinary assessment.";
+}
+
+function progress(text, value = null, error = false) {
+  const root = document.querySelector("#alchemy-progress");
+  if (!root) return;
   root.hidden = false;
   root.classList.toggle("error", error);
-  root.querySelector("p").textContent = text;
-  root.querySelector("b").style.width = `${Number.isFinite(Number(value)) ? Math.max(3, Math.min(100, value)) : 40}%`;
+  const numeric = Number(value);
+  const hasNumber = Number.isFinite(numeric);
+  if (hasNumber) state.progressValue = Math.max(state.progressValue || 0, Math.max(3, Math.min(100, numeric)));
+  else if (state.busy) state.progressValue = Math.min(91, Math.max(12, (state.progressValue || 12) + 2));
+  const visibleValue = Math.round(state.progressValue || 3);
+  root.classList.toggle("indeterminate", !hasNumber && visibleValue < 90);
+  root.querySelector("#alchemy-progress-copy").textContent = text;
+  root.querySelector(".alchemy-progress-track b").style.width = `${visibleValue}%`;
+  root.querySelector("#alchemy-progress-percent").textContent = `${visibleValue}%`;
+  updateProgressStages(visibleValue);
+}
+
+function finishProgress(error = false, title = "Insight ready") {
+  const root = document.querySelector("#alchemy-progress");
+  if (!root) return;
+  clearInterval(state.progressTimer);
+  state.progressTimer = null;
+  state.progressValue = 100;
+  root.classList.remove("busy", "indeterminate");
+  root.classList.toggle("error", error);
+  root.classList.add("complete");
+  root.setAttribute("aria-busy", "false");
+  root.querySelector("#alchemy-progress-title").textContent = title;
+  root.querySelector(".alchemy-progress-track b").style.width = "100%";
+  root.querySelector("#alchemy-progress-percent").textContent = "100%";
+  root.querySelector("#alchemy-cancel").hidden = true;
+  root.querySelector("#alchemy-progress-dismiss").hidden = false;
+  updateProgressStages(100);
+  updateElapsedTime();
+  if (!error) setTimeout(() => { if (!state.busy) hideProgress(); }, 1_800);
+}
+
+function showProgressMessage(text, error = false) {
+  beginProgress("rules");
+  progress(text, 100, error);
+  finishProgress(error, error ? "Action required" : "Saved");
+}
+
+function hideProgress() {
+  clearInterval(state.progressTimer);
+  state.progressTimer = null;
+  const root = document.querySelector("#alchemy-progress");
+  if (root) root.hidden = true;
+}
+
+function cancelRun() {
+  if (!state.busy) return hideProgress();
+  state.runController?.abort(new DOMException("AI refinement cancelled.", "AbortError"));
+  progress("Cancelling AI refinement and preserving the device-side simulation.", 100);
+}
+
+function updateElapsedTime() {
+  const node = document.querySelector("#alchemy-progress-time");
+  if (!node) return;
+  const seconds = Math.max(0, Math.floor((Date.now() - (state.progressStartedAt || Date.now())) / 1_000));
+  node.textContent = `Elapsed ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function updateProgressStages(value) {
+  const active = value < 20 ? "prepare" : value < 72 ? "model" : value < 95 ? "reason" : "validate";
+  const order = ["prepare", "model", "reason", "validate"];
+  document.querySelectorAll("[data-progress-stage]").forEach(node => {
+    const index = order.indexOf(node.dataset.progressStage);
+    const activeIndex = order.indexOf(active);
+    node.classList.toggle("active", node.dataset.progressStage === active && value < 100);
+    node.classList.toggle("done", value >= 100 || index < activeIndex);
+  });
+}
+
+function setMobileStep(step, focus = true) {
+  const valid = ["elements", "formula", "insights"].includes(step) ? step : "elements";
+  state.mobileStep = valid;
+  document.querySelector("#view-alchemy")?.setAttribute("data-mobile-step", valid);
+  document.querySelectorAll("[data-alchemy-step]").forEach(button => {
+    const active = button.dataset.alchemyStep === valid;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-current", active ? "step" : "false");
+  });
+  document.querySelectorAll("[data-alchemy-step-panel]").forEach(panel => panel.classList.toggle("alchemy-step-active", panel.dataset.alchemyStepPanel === valid));
+  if (focus && matchMedia("(max-width: 820px)").matches) {
+    const view = document.querySelector("#view-alchemy");
+    view?.scrollTo?.({ top: 0, behavior: "smooth" });
+  }
 }
 
 function currentInput() {
