@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Mangrok</title>
+  <desc id="desc">An open recipe book with a preserved leaf.</desc>
+  <rect width="512" height="512" rx="116" fill="#173c32"/>
+  <path d="M122 103h196c43 0 78 35 78 78v228H203c-45 0-81-36-81-81V103Z" fill="none" stroke="#f8f3e8" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M396 181h-52c-39 0-70 31-70 70v158" fill="none" stroke="#f8f3e8" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M190 218c55-54 123-45 157-31-15 39-56 91-143 87" fill="none" stroke="#d8c596" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M205 274c37 2 75 22 96 58" fill="none" stroke="#d8c596" stroke-width="21" stroke-linecap="round"/>
+</svg>
