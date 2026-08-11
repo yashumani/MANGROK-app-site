@@ -14,12 +14,48 @@ jobs:
         with:
           ref: agent/alchemy-alpha
           fetch-depth: 0
-      - name: Reconstruct verified Alchemy source
+      - name: Reconstruct and inspect Alchemy source
         shell: bash
         run: |
           set -euo pipefail
           cat .materialize/alchemy.part* | base64 --decode > alchemy.tar.xz
-          echo "5956ffaed608159952b22a1a14e9d43d52bc7da492446ab02c4b63180fb92899  alchemy.tar.xz" | sha256sum --check -
+          echo "Reconstructed archive: $(sha256sum alchemy.tar.xz)"
+          xz --test alchemy.tar.xz
+          tar -tJf alchemy.tar.xz | sort > /tmp/alchemy-files.actual
+          cat > /tmp/alchemy-files.expected <<'EOF'
+          assets/css/alchemy.css
+          docs/ALCHEMY-ALPHA.md
+          docs/LOCAL-AI.md
+          index.html
+          local-ai/README.md
+          local-ai/ollama/Modelfile
+          package.json
+          runtime-config.js
+          scripts/build.mjs
+          scripts/validate.mjs
+          src/alchemy-ui.js
+          src/app.js
+          src/cloud.js
+          src/culinary-engine.js
+          src/generated-images.js
+          src/generated/equipment.js
+          src/generated/evolution.js
+          src/generated/hero.js
+          src/generated/ingredients.js
+          src/generated/insights.js
+          src/kitchen-ui.js
+          src/local-ai.js
+          src/print-decor.js
+          src/print.js
+          styles.css
+          supabase/functions/alchemy-ai/.env.example
+          supabase/functions/alchemy-ai/index.ts
+          supabase/migrations/002_alchemy.sql
+          sw.js
+          tests/alchemy.test.mjs
+          EOF
+          sed -i 's/^          //' /tmp/alchemy-files.expected
+          diff -u /tmp/alchemy-files.expected /tmp/alchemy-files.actual
           tar -xJf alchemy.tar.xz
           rm -rf alchemy.tar.xz .materialize .github/workflows/materialize-alchemy.yml
       - name: Validate application
