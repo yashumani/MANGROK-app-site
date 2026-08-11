@@ -1,98 +1,76 @@
-# Mangrok
+# Mangrok — Secret Recipe Vault
 
-**Mangrok is a local-first recipe vault for recipes that are too valuable to lose and too personal to publish carelessly.**
+Mangrok preserves recipes that are too valuable to lose and too personal to publish carelessly. The application works immediately as a private, local-first progressive web app and can be connected to a Supabase backend for authenticated synchronization, row-level access control, invitations, revocation, private media, print operations, and human-reviewed legacy instructions.
 
-This repository contains the first free, installable web MVP. It works as a responsive website and progressive web app without a paid backend, paid hosting, or third-party tracking.
+> **Brand note:** Mangrok remains a working product name until formal trademark and market clearance is complete.
 
-> **Naming note:** “Mangrok” is the current working product name. Public launch branding should remain subject to formal trademark and market clearance.
+## What is implemented
 
-## What works today
+- Responsive, installable recipe vault with search, filters, favorites, backups, offline shell, and migration from the original browser MVP.
+- Four access labels: Only me, Family vault, Trusted circle, and Open recipe.
+- AES-256-GCM sealed notes derived with PBKDF2-SHA-256 at 310,000 iterations. Passphrases are never persisted.
+- Recipe versions and restore flows.
+- Trusted circles, viewer/contributor/custodian roles, separate sealed-note permission, expiration, and revocation.
+- Revocable, view-limited links. Optional sealed notes use a second client-side encryption key carried in the URL fragment, never the server request.
+- Private photographs, handwritten cards, audio, video, and documents.
+- Recipe origin, story, creator, place, year, and current custodian.
+- 6 × 9 inch print studio with cover, dedication, contents, three themes, and irreversible-secret confirmation.
+- Idempotent print-order Edge Function with private proof requirements and a safe no-provider state.
+- Legacy plans with recipients, release conditions, cancellation, and mandatory human review. No timer releases recipes automatically.
+- Supabase schema, RLS policies, private Storage policies, migration, account export, and deletion-request workflow.
+- Automated tests, static validation, production build, security documentation, acceptance tests, legal drafts, and GitHub Pages deployment.
 
-- Add, edit, search, filter, favorite, and delete recipes.
-- Store a separate sealed note for the secret ingredient, ratio, timing, or technique.
-- Mark recipes as **Only me**, **Family vault**, **Trusted circle**, or **Open recipe**.
-- Share a recipe as text or download a portable `.mangrok-recipe.json` file, with the secret note included only by choice.
-- Select recipes and print a clean cookbook, with an explicit switch for secret notes.
-- Back up and restore the entire vault as JSON.
-- Install the site as a progressive web app and use the cached app shell offline.
-- Keep all recipe data in the current browser through `localStorage`.
+## Important boundaries
 
-## Important privacy boundary
+The repository is application-complete, but three external activations cannot be fabricated in source code:
 
-This MVP is **local-first, not account-secured**. The screen-cover action hides content from casual view, but recipes are not yet encrypted and there is no server-side authentication. Anyone with access to the same browser profile may be able to inspect browser storage.
+1. **Cloud accounts:** create a Supabase project, apply the migration, configure email authentication, and place only the public URL and anonymous key in `runtime-config.js`.
+2. **Physical books:** configure a real print provider, private PDF-proof pipeline, commercial terms, tax/shipping rules, and provider secrets in Edge Function environment variables.
+3. **Legacy release:** establish trained human reviewers, identity-verification procedures, legal review, and an auditable decision process. The supplied function only flags plans for review.
 
-The secure cloud phase should add authenticated accounts, encrypted data storage, invite-only sharing, revocable links, access logs, and recovery safeguards before the app is positioned as a security product.
+Until cloud configuration is present, the deployed site intentionally runs in device-only mode. It must not be described as a server-secured vault.
 
-## Run locally
-
-No build tools or package installation are required.
+## Local development
 
 ```bash
+npm run check
 python3 -m http.server 4173
 ```
 
-Then open `http://localhost:4173`.
+Open `http://localhost:4173`. No package install is required because tests and builds use Node built-ins.
 
-Service workers require `localhost` or HTTPS. Opening `index.html` directly will display the interface, but installation and offline caching may not activate.
+## Build
 
-## Deploy for free with GitHub Pages
+```bash
+npm run build
+```
 
-The included workflow publishes the static files to GitHub Pages after changes reach `main`.
+The deployable site is written to `dist/`. GitHub Pages builds and publishes that directory from `main`.
 
-In the repository, open **Settings → Pages** and choose **GitHub Actions** as the source once. Future pushes to `main` will deploy automatically.
+## Cloud activation
 
-## Current architecture
+1. Create a Supabase project.
+2. Apply `supabase/migrations/001_platform.sql` once to a clean project.
+3. Deploy `print-order` and `legacy-review` Edge Functions.
+4. Configure function secrets from `supabase/functions/.env.example`.
+5. Copy the project URL and **anonymous** key into `runtime-config.js`.
+6. Run every test in `docs/ACCEPTANCE-TESTS.md` with two independent accounts before enabling public sign-up.
+
+Never place the service-role key in browser code, GitHub Pages, or `runtime-config.js`.
+
+## Repository map
 
 ```text
-index.html                 Application shell and accessible dialogs
-styles.css                 Responsive UI, component styles, and print layouts
-app.js                     Data model, local persistence, sharing, backup, and UI behavior
-manifest.webmanifest       Installable PWA metadata
-sw.js                      Offline app-shell cache
-assets/mangrok-mark.svg    Original Mangrok application mark
-.github/workflows/pages.yml
+index.html, styles.css       Responsive application shell
+src/                         Model, crypto, IndexedDB, cloud adapter, UI, print renderer
+supabase/migrations/         Data model, functions, RLS, Storage policies
+supabase/functions/          Server-only print and legacy review adapters
+tests/                       Node tests for crypto, model, print safety, and security contracts
+docs/                        Deployment, acceptance, threat, print, legacy, and release runbooks
+legal/                       Privacy and terms drafts requiring counsel review
+.github/workflows/           CI and GitHub Pages deployment
 ```
 
-## Product roadmap
+## License and content
 
-### Phase 2 — Secure accounts
-
-- Email or passkey sign-in.
-- Private cloud synchronization across devices.
-- Row-level access controls for every recipe.
-- Encrypted backups and safer account recovery.
-
-### Phase 3 — Permission-based sharing
-
-- Invitations to family and trusted circles.
-- View-only access, expiry dates, and revocation.
-- Separate permission for the sealed secret layer.
-- Recipient and access history.
-
-### Phase 4 — Preservation and print
-
-- Handwritten recipe-card capture.
-- Voice memories and family stories.
-- Recipe lineage, custodians, and version history.
-- Professionally printed books and gift editions.
-
-### Phase 5 — Legacy
-
-- Designated future recipients.
-- Release instructions for legacy recipes.
-- Family collections and collaborative editing.
-
-## Data format
-
-Vault backups use a versioned JSON envelope:
-
-```json
-{
-  "type": "mangrok.vault",
-  "version": 1,
-  "exportedAt": "2026-08-10T00:00:00.000Z",
-  "recipes": []
-}
-```
-
-Portable recipe files use `type: "mangrok.recipe"` and may omit the sealed secret note.
+No license is granted for user recipe content. Add an explicit source-code license only after the owner chooses one.

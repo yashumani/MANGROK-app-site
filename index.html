@@ -1,600 +1,167 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta
-      name="description"
-      content="Mangrok is a private recipe vault for preserving family recipes, secret techniques, and the stories behind them."
-    />
-    <meta name="theme-color" content="#173c32" />
-    <meta name="color-scheme" content="light" />
-    <title>Mangrok — Your secret recipe vault</title>
-    <link rel="icon" href="./assets/mangrok-mark.svg" type="image/svg+xml" />
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <a class="skip-link" href="#main-content">Skip to recipes</a>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#143d33">
+  <meta name="description" content="Mangrok is a private, permission-aware vault for recipes too valuable to lose and too personal to publish carelessly.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://esm.sh https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
+  <title>Mangrok — Secret Recipe Vault</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/mangrok-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <a class="brand" href="#vault" data-view-link="vault" aria-label="Mangrok home">
+        <img src="assets/mangrok-mark.svg" alt=""><span><strong>Mangrok</strong><small>Secret Recipe Vault</small></span>
+      </a>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="vault"><span aria-hidden="true">⌂</span>Vault</button>
+        <button class="nav-item" data-view="circles"><span aria-hidden="true">◎</span>Trusted circles</button>
+        <button class="nav-item" data-view="print"><span aria-hidden="true">▤</span>Print studio</button>
+        <button class="nav-item" data-view="legacy"><span aria-hidden="true">◇</span>Legacy</button>
+        <button class="nav-item" data-view="settings"><span aria-hidden="true">⚙</span>Settings</button>
+      </nav>
+      <div class="privacy-card">
+        <span class="status-dot" id="mode-dot"></span>
+        <div><strong id="mode-title">Device vault</strong><p id="mode-copy">Your data stays in this browser.</p></div>
+      </div>
+      <p class="sidebar-note">Mangrok controls access inside the app. A visible recipe can still be copied or photographed.</p>
+    </aside>
 
-    <div class="app-shell" id="app-shell">
+    <div class="workspace">
       <header class="topbar">
-        <button class="brand" type="button" data-nav="vault" aria-label="Open Mangrok vault">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 48 48" role="img">
-              <path d="M12 9.5h18.5A5.5 5.5 0 0 1 36 15v23.5H17.5A5.5 5.5 0 0 1 12 33V9.5Z" />
-              <path d="M36 15h-5a4 4 0 0 0-4 4v19.5" />
-              <path d="M18.5 19.5c4.4-4.4 9.4-3.8 12-2.9-1 2.7-4 7-10.7 6.8" />
-              <path d="M19.8 23.4c2.5.2 5.1 1.5 6.7 4.1" />
-            </svg>
-          </span>
-          <span class="brand-copy">
-            <strong>Mangrok</strong>
-            <small>Private recipe vault</small>
-          </span>
-        </button>
-
-        <div class="topbar-actions">
-          <button class="icon-button install-button" id="install-button" type="button" hidden>
-            <span class="icon" data-icon="download" aria-hidden="true"></span>
-            <span class="desktop-only">Install</span>
-          </button>
-          <button class="icon-button" id="backup-button" type="button" aria-label="Back up recipe vault">
-            <span class="icon" data-icon="archive" aria-hidden="true"></span>
-            <span class="desktop-only">Backup</span>
-          </button>
-          <button class="icon-button" id="lock-button" type="button" aria-label="Hide recipe vault from view">
-            <span class="icon" data-icon="lock" aria-hidden="true"></span>
-          </button>
-          <button class="primary-button" id="new-recipe-button" type="button">
-            <span class="icon" data-icon="plus" aria-hidden="true"></span>
-            <span class="button-label">New recipe</span>
-          </button>
+        <div>
+          <p class="eyebrow" id="view-eyebrow">Your private collection</p>
+          <h1 id="view-title">Recipe vault</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button" id="notifications-button" aria-label="Notifications"><span aria-hidden="true">♢</span><b id="notification-count" hidden>0</b></button>
+          <button class="button ghost" id="auth-button">Connect cloud</button>
+          <button class="button primary" id="new-recipe-button"><span aria-hidden="true">＋</span>New recipe</button>
         </div>
       </header>
 
-      <aside class="sidebar" aria-label="Vault navigation">
-        <nav class="sidebar-nav">
-          <button class="nav-item is-active" type="button" data-nav="vault">
-            <span class="icon" data-icon="book" aria-hidden="true"></span>
-            <span>My vault</span>
-            <span class="nav-count" id="nav-vault-count">0</span>
-          </button>
-          <button class="nav-item" type="button" data-nav="favorites">
-            <span class="icon" data-icon="heart" aria-hidden="true"></span>
-            <span>Favorites</span>
-            <span class="nav-count" id="nav-favorites-count">0</span>
-          </button>
-          <button class="nav-item" type="button" data-nav="shared">
-            <span class="icon" data-icon="users" aria-hidden="true"></span>
-            <span>Shared recipes</span>
-            <span class="nav-count" id="nav-shared-count">0</span>
-          </button>
-          <button class="nav-item" type="button" data-nav="print">
-            <span class="icon" data-icon="printer" aria-hidden="true"></span>
-            <span>Print studio</span>
-          </button>
-        </nav>
-
-        <div class="sidebar-divider"></div>
-
-        <div class="sidebar-section">
-          <div class="sidebar-section-heading">
-            <span>Privacy</span>
-            <button class="text-button" id="clear-filter-button" type="button">Clear</button>
-          </div>
-          <div class="privacy-filter-list" id="privacy-filter-list">
-            <button class="privacy-filter is-active" type="button" data-privacy-filter="all">
-              <span class="privacy-dot all"></span>
-              All recipes
-            </button>
-            <button class="privacy-filter" type="button" data-privacy-filter="private">
-              <span class="privacy-dot private"></span>
-              Only me
-            </button>
-            <button class="privacy-filter" type="button" data-privacy-filter="family">
-              <span class="privacy-dot family"></span>
-              Family vault
-            </button>
-            <button class="privacy-filter" type="button" data-privacy-filter="trusted">
-              <span class="privacy-dot trusted"></span>
-              Trusted circle
-            </button>
-            <button class="privacy-filter" type="button" data-privacy-filter="open">
-              <span class="privacy-dot open"></span>
-              Open recipes
-            </button>
-          </div>
-        </div>
-
-        <div class="sidebar-note">
-          <span class="icon" data-icon="shield" aria-hidden="true"></span>
-          <div>
-            <strong>Local-first prototype</strong>
-            <p>Your recipes stay in this browser until cloud accounts are added.</p>
-          </div>
-        </div>
-      </aside>
-
-      <main id="main-content" class="main-content" tabindex="-1">
-        <section class="view is-active" id="vault-view" data-view="vault" aria-labelledby="vault-heading">
-          <div class="vault-hero">
-            <div class="hero-copy">
-              <p class="eyebrow">Your culinary legacy</p>
-              <h1 id="vault-heading">Recipes worth protecting.</h1>
-              <p>
-                Preserve the exact ingredients, secret techniques, and family stories that should never be lost.
-              </p>
-            </div>
-            <div class="hero-seal" aria-hidden="true">
-              <span>Sealed</span>
-              <strong id="hero-secret-count">0</strong>
-              <small>secret notes</small>
+      <main id="main" tabindex="-1">
+        <section class="view active" id="view-vault" data-view-panel="vault">
+          <div class="hero-panel">
+            <div><p class="eyebrow">Preserve the irreplaceable</p><h2>Recipes have owners, stories, and chosen levels of secrecy.</h2>
+              <p>Keep the ordinary instructions useful while sealing the ingredient, ratio, timing, or technique that makes the recipe yours.</p></div>
+            <div class="hero-stats" aria-label="Vault summary">
+              <div><strong id="stat-recipes">0</strong><span>Recipes</span></div>
+              <div><strong id="stat-sealed">0</strong><span>Sealed</span></div>
+              <div><strong id="stat-shared">0</strong><span>Shared</span></div>
             </div>
           </div>
 
-          <div class="stats-grid" aria-label="Vault summary">
-            <article class="stat-card">
-              <span class="stat-icon" data-icon="book-open" aria-hidden="true"></span>
-              <div>
-                <strong id="stat-total">0</strong>
-                <span>Total recipes</span>
-              </div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon" data-icon="key" aria-hidden="true"></span>
-              <div>
-                <strong id="stat-private">0</strong>
-                <span>Only for you</span>
-              </div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon" data-icon="users" aria-hidden="true"></span>
-              <div>
-                <strong id="stat-shared">0</strong>
-                <span>Shared carefully</span>
-              </div>
-            </article>
-            <article class="stat-card">
-              <span class="stat-icon" data-icon="heart" aria-hidden="true"></span>
-              <div>
-                <strong id="stat-favorites">0</strong>
-                <span>Favorites</span>
-              </div>
-            </article>
+          <div class="toolbar" aria-label="Recipe filters">
+            <label class="search-field"><span class="sr-only">Search recipes</span><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Search recipes, people, places…"></label>
+            <select id="privacy-filter" aria-label="Filter by privacy"><option value="all">All access levels</option><option value="private">Only me</option><option value="family">Family vault</option><option value="trusted">Trusted circle</option><option value="open">Open recipe</option></select>
+            <select id="sort-select" aria-label="Sort recipes"><option value="updated">Recently updated</option><option value="title">Title A–Z</option><option value="oldest">Oldest update</option></select>
+            <label class="check-pill"><input id="favorites-filter" type="checkbox">Favorites</label>
           </div>
-
-          <div class="content-toolbar">
-            <div>
-              <h2>Inside your vault</h2>
-              <p id="results-summary">All saved recipes</p>
-            </div>
-            <div class="toolbar-controls">
-              <label class="search-field">
-                <span class="icon" data-icon="search" aria-hidden="true"></span>
-                <span class="sr-only">Search recipes</span>
-                <input id="recipe-search" type="search" placeholder="Search recipes, tags, cuisine…" autocomplete="off" />
-                <kbd class="search-shortcut" aria-hidden="true">/</kbd>
-              </label>
-              <label class="select-field">
-                <span class="sr-only">Sort recipes</span>
-                <select id="recipe-sort">
-                  <option value="updated">Recently updated</option>
-                  <option value="title">Recipe name</option>
-                  <option value="time">Quickest first</option>
-                </select>
-                <span class="icon" data-icon="chevron-down" aria-hidden="true"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="recipe-grid" id="vault-recipe-grid" aria-live="polite"></div>
+          <div class="recipe-grid" id="recipe-grid" aria-live="polite"></div>
+          <div class="empty-state" id="empty-state" hidden><div class="empty-mark">✦</div><h2>Your vault is ready</h2><p>Add the first recipe, including its story and optional sealed note.</p><button class="button primary" data-action="new-recipe">Add a recipe</button></div>
         </section>
 
-        <section class="view" id="favorites-view" data-view="favorites" aria-labelledby="favorites-heading">
-          <div class="view-header">
-            <div>
-              <p class="eyebrow">Your most treasured</p>
-              <h1 id="favorites-heading">Favorite recipes</h1>
-              <p>Keep the dishes you return to most close at hand.</p>
-            </div>
-            <button class="secondary-button" type="button" data-nav="vault">
-              <span class="icon" data-icon="arrow-left" aria-hidden="true"></span>
-              Back to vault
-            </button>
-          </div>
-          <div class="recipe-grid" id="favorites-recipe-grid" aria-live="polite"></div>
+        <section class="view" id="view-circles" data-view-panel="circles">
+          <div class="section-intro"><div><p class="eyebrow">Permission-based sharing</p><h2>Trusted circles</h2><p>Group people by relationship, give each person a role, and decide separately whether they may receive a sealed note.</p></div>
+            <button class="button primary" id="new-circle-button">New circle</button></div>
+          <div class="two-column"><div class="panel"><h3>Your circles</h3><div id="circle-list" class="stack-list"></div></div>
+            <div class="panel help-panel"><h3>How access works</h3><ol><li><b>Viewer</b> may read the standard recipe.</li><li><b>Contributor</b> may update standard recipe content.</li><li><b>Custodian</b> may manage collaborators and future stewardship.</li><li>Sealed-note access is always a separate permission.</li></ol><p class="warning-note">Revocation stops future access in Mangrok but cannot erase screenshots or copies already made.</p></div></div>
         </section>
 
-        <section class="view" id="shared-view" data-view="shared" aria-labelledby="shared-heading">
-          <div class="view-header">
-            <div>
-              <p class="eyebrow">Shared by permission</p>
-              <h1 id="shared-heading">Shared recipes</h1>
-              <p>Review every recipe currently marked for family, trusted people, or open sharing.</p>
-            </div>
-            <button class="secondary-button" type="button" data-nav="vault">
-              <span class="icon" data-icon="arrow-left" aria-hidden="true"></span>
-              Back to vault
-            </button>
+        <section class="view" id="view-print" data-view-panel="print">
+          <div class="section-intro"><div><p class="eyebrow">A ceremonial object</p><h2>Print studio</h2><p>Compose a private 6 × 9 inch family edition and print it locally as a high-quality PDF. Physical fulfillment activates only after a provider is configured.</p></div></div>
+          <div class="print-layout">
+            <form class="panel form-stack" id="book-form">
+              <label>Book title<input name="title" required maxlength="120" value="Our Family Recipes"></label>
+              <label>Dedication<textarea name="dedication" rows="3" maxlength="500" placeholder="For the people who keep our table alive…"></textarea></label>
+              <label>Design<select name="theme"><option value="heritage">Heritage</option><option value="botanical">Botanical</option><option value="modern">Modern</option></select></label>
+              <fieldset><legend>Choose recipes</legend><div id="print-recipe-list" class="selection-list"></div></fieldset>
+              <label class="switch-row"><span><b>Include unlocked sealed notes</b><small>This makes private information irreversible in print.</small></span><input name="includeSecrets" type="checkbox"></label>
+              <label class="approval-box" id="secret-approval" hidden><input name="secretApproval" type="checkbox">I understand that printed secret notes cannot be revoked.</label>
+              <div class="button-row"><button class="button secondary" type="button" id="preview-book-button">Preview</button><button class="button primary" type="submit">Print / save PDF</button></div>
+              <button class="button ghost full" type="button" id="order-book-button">Request physical book</button>
+            </form>
+            <div class="book-preview panel" id="book-preview"><div class="book-cover"><span>Mangrok private edition</span><h3>Our Family Recipes</h3><p>Select recipes to preview your book.</p></div></div>
           </div>
-          <div class="sharing-guide">
-            <div>
-              <span class="privacy-dot family"></span>
-              <strong>Family vault</strong>
-              <p>For people who belong to your household or family circle.</p>
-            </div>
-            <div>
-              <span class="privacy-dot trusted"></span>
-              <strong>Trusted circle</strong>
-              <p>For individually selected people who should receive the recipe.</p>
-            </div>
-            <div>
-              <span class="privacy-dot open"></span>
-              <strong>Open recipe</strong>
-              <p>Ready to share outside your private vault.</p>
-            </div>
-          </div>
-          <div class="recipe-grid" id="shared-recipe-grid" aria-live="polite"></div>
         </section>
 
-        <section class="view" id="print-view" data-view="print" aria-labelledby="print-heading">
-          <div class="view-header print-header">
-            <div>
-              <p class="eyebrow">Turn memories into a book</p>
-              <h1 id="print-heading">Print studio</h1>
-              <p>Select recipes and create a clean, print-ready family cookbook from your browser.</p>
-            </div>
-            <button class="primary-button" id="print-selected-button" type="button">
-              <span class="icon" data-icon="printer" aria-hidden="true"></span>
-              Print selected
-            </button>
+        <section class="view" id="view-legacy" data-view-panel="legacy">
+          <div class="section-intro"><div><p class="eyebrow">Stewardship, not automation</p><h2>Legacy instructions</h2><p>Record who should become the next custodian and under what conditions. Every release requires identity checks and human review.</p></div></div>
+          <div class="two-column">
+            <form class="panel form-stack" id="legacy-form">
+              <label>Primary recipient email<input name="primaryEmail" type="email" required autocomplete="email"></label>
+              <label>Backup recipient email<input name="backupEmail" type="email" autocomplete="email"></label>
+              <label>Earliest release date<input name="releaseAfter" type="date"></label>
+              <label>Inactivity review after<select name="inactivityMonths"><option value="">No inactivity trigger</option><option value="12">12 months</option><option value="24">24 months</option><option value="36">36 months</option></select></label>
+              <fieldset><legend>Recipes covered</legend><div id="legacy-recipe-list" class="selection-list"></div></fieldset>
+              <label>Sealed message<textarea name="sealedMessage" rows="5" maxlength="4000" placeholder="Why these recipes matter, and how they should be cared for…"></textarea></label>
+              <label class="approval-box"><input name="reviewAcknowledgement" type="checkbox" required>I understand that Mangrok will flag this plan for human review and will never release it solely because a timer elapsed.</label>
+              <button class="button primary" type="submit">Save legacy instructions</button>
+            </form>
+            <div class="panel"><h3>Active plans</h3><div id="legacy-list" class="stack-list"></div><div class="safety-card"><b>Safety design</b><p>Recipients do not automatically receive recipes. An operator must verify the owner’s instructions, the recipient’s identity, and the release conditions.</p></div></div>
           </div>
+        </section>
 
-          <div class="print-studio-layout">
-            <aside class="print-book-preview" aria-label="Cookbook preview">
-              <div class="book-cover">
-                <span class="book-mark" aria-hidden="true">
-                  <svg viewBox="0 0 48 48">
-                    <path d="M12 9.5h18.5A5.5 5.5 0 0 1 36 15v23.5H17.5A5.5 5.5 0 0 1 12 33V9.5Z" />
-                    <path d="M36 15h-5a4 4 0 0 0-4 4v19.5" />
-                    <path d="M18.5 19.5c4.4-4.4 9.4-3.8 12-2.9-1 2.7-4 7-10.7 6.8" />
-                  </svg>
-                </span>
-                <p>THE MANGROK COLLECTION</p>
-                <h2>Recipes<br />Worth Keeping</h2>
-                <span class="cover-rule"></span>
-                <small id="book-cover-count">0 recipes selected</small>
-              </div>
-              <p class="preview-note">
-                Printing includes recipe stories and visible instructions. Secret notes are excluded unless you explicitly include them.
-              </p>
-              <label class="toggle-row">
-                <span>
-                  <strong>Include secret notes</strong>
-                  <small>Only use for trusted physical copies.</small>
-                </span>
-                <input id="include-secrets-toggle" type="checkbox" />
-                <span class="toggle-control" aria-hidden="true"></span>
-              </label>
-            </aside>
-
-            <div class="print-selection-panel">
-              <div class="selection-toolbar">
-                <div>
-                  <h2>Choose recipes</h2>
-                  <p id="print-selection-summary">Nothing selected yet</p>
-                </div>
-                <div class="selection-actions">
-                  <button class="text-button" id="select-all-button" type="button">Select all</button>
-                  <button class="text-button" id="select-none-button" type="button">Clear</button>
-                </div>
-              </div>
-              <div class="print-recipe-list" id="print-recipe-list"></div>
-            </div>
+        <section class="view" id="view-settings" data-view-panel="settings">
+          <div class="section-intro"><div><p class="eyebrow">Control and recovery</p><h2>Settings</h2><p>Choose device-only use or activate secure synchronization when the backend is configured.</p></div></div>
+          <div class="settings-grid">
+            <section class="panel"><h3>Cloud synchronization</h3><div id="cloud-status" class="status-banner"></div><p>Cloud mode uses authenticated accounts and database row-level access policies. Sealed notes remain ciphertext.</p><button class="button secondary" id="settings-auth-button">Connect account</button></section>
+            <section class="panel"><h3>Backup and portability</h3><p>Export a versioned JSON backup. Binary attachments stay on this device and should also be backed up separately.</p><div class="button-row"><button class="button secondary" id="export-button">Export vault</button><label class="button ghost file-button">Import vault<input id="import-input" type="file" accept="application/json,.json"></label></div></section>
+            <section class="panel"><h3>Privacy screen</h3><p>Hide the interface from casual viewing. This is not encryption or account security.</p><button class="button secondary" id="cover-button">Cover screen</button></section>
+            <section class="panel danger-panel"><h3>Account and deletion</h3><p>Cloud users may request deletion with a cooling-off period. Device-only users can erase local data immediately.</p><button class="button danger" id="delete-account-button">Delete / erase data</button></section>
           </div>
+          <footer class="legal-links"><a href="legal/privacy.html">Privacy notice</a><a href="legal/terms.html">Terms</a><a href="SECURITY.md">Security</a><span>Mangrok v2.0</span></footer>
         </section>
       </main>
-
-      <nav class="mobile-nav" aria-label="Mobile navigation">
-        <button class="mobile-nav-item is-active" type="button" data-nav="vault">
-          <span class="icon" data-icon="book" aria-hidden="true"></span>
-          <span>Vault</span>
-        </button>
-        <button class="mobile-nav-item" type="button" data-nav="favorites">
-          <span class="icon" data-icon="heart" aria-hidden="true"></span>
-          <span>Favorites</span>
-        </button>
-        <button class="mobile-add-button" id="mobile-new-recipe-button" type="button" aria-label="Add a new recipe">
-          <span class="icon" data-icon="plus" aria-hidden="true"></span>
-        </button>
-        <button class="mobile-nav-item" type="button" data-nav="shared">
-          <span class="icon" data-icon="users" aria-hidden="true"></span>
-          <span>Shared</span>
-        </button>
-        <button class="mobile-nav-item" type="button" data-nav="print">
-          <span class="icon" data-icon="printer" aria-hidden="true"></span>
-          <span>Print</span>
-        </button>
-      </nav>
     </div>
+  </div>
 
-    <dialog class="recipe-dialog" id="recipe-detail-dialog" aria-labelledby="detail-title">
-      <div class="dialog-surface detail-surface">
-        <button class="dialog-close" type="button" data-close-dialog="recipe-detail-dialog" aria-label="Close recipe">
-          <span class="icon" data-icon="x" aria-hidden="true"></span>
-        </button>
-        <div id="recipe-detail-content"></div>
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button class="active" data-view="vault">Vault</button><button data-view="circles">Circles</button><button data-view="print">Print</button><button data-view="legacy">Legacy</button><button data-view="settings">Settings</button>
+  </nav>
+
+  <dialog id="recipe-dialog" class="modal wide-modal">
+    <form method="dialog" class="modal-shell" id="recipe-form">
+      <header><div><p class="eyebrow">Preserve a recipe</p><h2 id="recipe-dialog-title">New recipe</h2></div><button class="icon-button close-button" value="cancel" aria-label="Close">×</button></header>
+      <input name="id" type="hidden"><div class="form-grid">
+        <label class="span-2">Recipe title<input name="title" required maxlength="180" autocomplete="off"></label>
+        <label class="span-2">Short description<textarea name="summary" rows="2" maxlength="1200"></textarea></label>
+        <label>Servings<input name="servings" maxlength="60"></label><label>Privacy<select name="privacy"><option value="private">Only me</option><option value="family">Family vault</option><option value="trusted">Trusted circle</option><option value="open">Open recipe</option></select></label>
+        <label>Prep minutes<input name="prepMinutes" type="number" min="0" max="10000"></label><label>Cook minutes<input name="cookMinutes" type="number" min="0" max="10000"></label>
+        <label class="span-2">Ingredients <small>One per line</small><textarea name="ingredients" rows="7" required></textarea></label>
+        <label class="span-2">Method <small>One step per line</small><textarea name="steps" rows="8" required></textarea></label>
+        <label class="span-2">Tags <small>Comma separated</small><input name="tags"></label>
       </div>
-    </dialog>
+      <details class="form-section" open><summary>Story and lineage</summary><div class="form-grid">
+        <label>Original creator<input name="creator"></label><label>Place of origin<input name="place"></label><label>Approximate year<input name="year"></label><label>Current custodian<input name="custodian"></label>
+        <label class="span-2">Family story<textarea name="story" rows="5"></textarea></label></div></details>
+      <details class="form-section"><summary>Sealed note</summary><div class="sealed-editor"><p>Encrypt the special ingredient, ratio, timing, temperature, or technique before it leaves this form.</p>
+        <label>Secret hint <small>Visible without unlocking</small><input name="secretHint" maxlength="240"></label>
+        <label>Secret text<textarea name="secretText" rows="5" autocomplete="off"></textarea></label>
+        <label>Passphrase<input name="secretPassphrase" type="password" minlength="10" autocomplete="new-password"></label>
+        <label class="check-row"><input name="removeSecret" type="checkbox">Remove the existing sealed note</label><p class="microcopy">Mangrok never stores this passphrase. Losing it means losing access to the sealed note.</p></div></details>
+      <details class="form-section"><summary>Preservation media</summary><div class="form-grid"><label>Attachment type<select name="attachmentKind"><option value="photo">Photograph</option><option value="card">Handwritten card</option><option value="audio">Voice memory</option><option value="video">Video</option><option value="document">Document</option></select></label>
+        <label>Choose file<input name="attachment" type="file" accept="image/*,audio/*,video/*,application/pdf"></label><div class="span-2" id="existing-assets"></div></div></details>
+      <p class="form-error" id="recipe-error" role="alert"></p>
+      <footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="save" id="save-recipe-button">Save recipe</button></footer>
+    </form>
+  </dialog>
 
-    <dialog class="recipe-dialog" id="recipe-editor-dialog" aria-labelledby="editor-dialog-title">
-      <div class="dialog-surface editor-surface">
-        <div class="dialog-header">
-          <div>
-            <p class="eyebrow" id="editor-eyebrow">Add to your vault</p>
-            <h2 id="editor-dialog-title">New recipe</h2>
-          </div>
-          <button class="dialog-close static" type="button" data-close-dialog="recipe-editor-dialog" aria-label="Close editor">
-            <span class="icon" data-icon="x" aria-hidden="true"></span>
-          </button>
-        </div>
+  <dialog id="viewer-dialog" class="modal wide-modal"><div class="modal-shell"><header><div><p class="eyebrow" id="viewer-privacy"></p><h2 id="viewer-title"></h2></div><button class="icon-button close-button" data-close="viewer-dialog" aria-label="Close">×</button></header><div id="viewer-content"></div><footer class="wrap-footer"><button class="button ghost" id="viewer-history">History</button><button class="button ghost" id="viewer-share">Share</button><button class="button secondary" id="viewer-unlock">Unlock secret</button><button class="button secondary" id="viewer-edit">Edit</button><button class="button danger ghost" id="viewer-delete">Delete</button></footer></div></dialog>
+  <dialog id="circle-dialog" class="modal"><form method="dialog" class="modal-shell" id="circle-form"><header><div><p class="eyebrow">Trusted people</p><h2>Circle</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></header><input name="id" type="hidden"><label>Circle name<input name="name" required></label><label>Description<textarea name="description" rows="2"></textarea></label><label>Members <small>One email per line; append | contributor | secret</small><textarea name="members" rows="7" placeholder="alex@example.com | viewer\nsam@example.com | contributor | secret"></textarea></label><footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="save">Save circle</button></footer></form></dialog>
+  <dialog id="auth-dialog" class="modal"><form method="dialog" class="modal-shell" id="auth-form"><header><div><p class="eyebrow">Secure synchronization</p><h2>Connect your vault</h2></div><button class="icon-button" value="cancel" aria-label="Close">×</button></header><div id="auth-content"><p>Enter your email to receive a secure sign-in link. Device recipes remain available even without cloud configuration.</p><label>Email<input name="email" type="email" required autocomplete="email"></label></div><p class="form-error" id="auth-error"></p><footer><button class="button ghost" value="cancel">Cancel</button><button class="button primary" value="signin">Send sign-in link</button></footer></form></dialog>
+  <dialog id="history-dialog" class="modal"><div class="modal-shell"><header><div><p class="eyebrow">Audit trail</p><h2>Recipe history</h2></div><button class="icon-button" data-close="history-dialog" aria-label="Close">×</button></header><div id="history-list" class="stack-list"></div></div></dialog>
+  <dialog id="notifications-dialog" class="modal"><div class="modal-shell"><header><div><p class="eyebrow">Activity</p><h2>Notifications</h2></div><button class="icon-button" data-close="notifications-dialog" aria-label="Close">×</button></header><div id="notifications-list" class="stack-list"></div></div></dialog>
+  <dialog id="screen-cover" class="screen-cover"><form method="dialog"><img src="assets/mangrok-mark.svg" alt=""><h2>Vault covered</h2><p>Open again when the screen is private.</p><button class="button primary">Open Mangrok</button></form></dialog>
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
 
-        <form id="recipe-form" novalidate>
-          <input id="recipe-id" name="recipeId" type="hidden" />
-          <div class="form-section">
-            <div class="form-section-heading">
-              <span>01</span>
-              <div>
-                <h3>The recipe</h3>
-                <p>Start with the details people need to recognize it.</p>
-              </div>
-            </div>
-            <div class="form-grid two-columns">
-              <label class="form-field full-width">
-                <span>Recipe name <em>*</em></span>
-                <input id="recipe-title" name="title" type="text" maxlength="80" placeholder="e.g. Grandma's Sunday sauce" required />
-                <small class="field-error" data-error-for="title"></small>
-              </label>
-              <label class="form-field">
-                <span>Category</span>
-                <select id="recipe-category" name="category">
-                  <option>Main dish</option>
-                  <option>Breakfast</option>
-                  <option>Soup & stew</option>
-                  <option>Bread</option>
-                  <option>Dessert</option>
-                  <option>Sauce & condiment</option>
-                  <option>Drink</option>
-                  <option>Other</option>
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Cuisine or origin</span>
-                <input id="recipe-cuisine" name="cuisine" type="text" maxlength="50" placeholder="e.g. Korean, family original" />
-              </label>
-              <label class="form-field full-width">
-                <span>Short description</span>
-                <textarea id="recipe-description" name="description" rows="2" maxlength="220" placeholder="What makes this dish special?"></textarea>
-              </label>
-              <label class="form-field">
-                <span>Prep time (minutes)</span>
-                <input id="recipe-prep-time" name="prepTime" type="number" min="0" max="1440" inputmode="numeric" placeholder="20" />
-              </label>
-              <label class="form-field">
-                <span>Cook time (minutes)</span>
-                <input id="recipe-cook-time" name="cookTime" type="number" min="0" max="2880" inputmode="numeric" placeholder="45" />
-              </label>
-              <label class="form-field">
-                <span>Servings</span>
-                <input id="recipe-servings" name="servings" type="number" min="1" max="100" inputmode="numeric" placeholder="4" />
-              </label>
-              <label class="form-field">
-                <span>Tags</span>
-                <input id="recipe-tags" name="tags" type="text" maxlength="120" placeholder="comfort food, winter, quick" />
-              </label>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-heading">
-              <span>02</span>
-              <div>
-                <h3>Ingredients & method</h3>
-                <p>Use one ingredient or instruction per line.</p>
-              </div>
-            </div>
-            <div class="form-grid two-columns">
-              <label class="form-field">
-                <span>Ingredients <em>*</em></span>
-                <textarea
-                  id="recipe-ingredients"
-                  name="ingredients"
-                  rows="10"
-                  placeholder="2 cups | all-purpose flour&#10;1 tsp | sea salt&#10;3 tbsp | olive oil"
-                  required
-                ></textarea>
-                <small>Optional format: amount | ingredient</small>
-                <small class="field-error" data-error-for="ingredients"></small>
-              </label>
-              <label class="form-field">
-                <span>Instructions <em>*</em></span>
-                <textarea
-                  id="recipe-steps"
-                  name="steps"
-                  rows="10"
-                  placeholder="Warm the pan over medium heat.&#10;Add the aromatics and cook slowly.&#10;Finish with the reserved herbs."
-                  required
-                ></textarea>
-                <small class="field-error" data-error-for="steps"></small>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-section secret-form-section">
-            <div class="form-section-heading">
-              <span>03</span>
-              <div>
-                <h3>The secret layer</h3>
-                <p>Keep the detail that transforms the recipe behind a seal.</p>
-              </div>
-            </div>
-            <label class="form-field">
-              <span>Secret ingredient, ratio, or technique</span>
-              <textarea id="recipe-secret" name="secret" rows="4" maxlength="900" placeholder="This stays hidden until you choose to reveal it."></textarea>
-            </label>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-heading">
-              <span>04</span>
-              <div>
-                <h3>Story & access</h3>
-                <p>Record where it came from and who should be able to see it.</p>
-              </div>
-            </div>
-            <div class="form-grid two-columns">
-              <label class="form-field">
-                <span>Recipe story</span>
-                <textarea id="recipe-story" name="story" rows="6" maxlength="1200" placeholder="Who taught you this recipe? When is it usually made?"></textarea>
-              </label>
-              <fieldset class="privacy-picker">
-                <legend>Who can receive this recipe?</legend>
-                <label>
-                  <input type="radio" name="privacy" value="private" checked />
-                  <span class="privacy-option-card">
-                    <span class="privacy-dot private"></span>
-                    <span><strong>Only me</strong><small>Keep it inside your personal vault.</small></span>
-                  </span>
-                </label>
-                <label>
-                  <input type="radio" name="privacy" value="family" />
-                  <span class="privacy-option-card">
-                    <span class="privacy-dot family"></span>
-                    <span><strong>Family vault</strong><small>Marked for family access.</small></span>
-                  </span>
-                </label>
-                <label>
-                  <input type="radio" name="privacy" value="trusted" />
-                  <span class="privacy-option-card">
-                    <span class="privacy-dot trusted"></span>
-                    <span><strong>Trusted circle</strong><small>Share only with selected people.</small></span>
-                  </span>
-                </label>
-                <label>
-                  <input type="radio" name="privacy" value="open" />
-                  <span class="privacy-option-card">
-                    <span class="privacy-dot open"></span>
-                    <span><strong>Open recipe</strong><small>Ready for broad sharing.</small></span>
-                  </span>
-                </label>
-              </fieldset>
-            </div>
-          </div>
-
-          <div class="form-footer">
-            <button class="secondary-button" type="button" data-close-dialog="recipe-editor-dialog">Cancel</button>
-            <button class="primary-button" type="submit">
-              <span class="icon" data-icon="check" aria-hidden="true"></span>
-              Save to vault
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
-
-    <dialog class="recipe-dialog" id="share-dialog" aria-labelledby="share-dialog-title">
-      <div class="dialog-surface share-surface">
-        <button class="dialog-close" type="button" data-close-dialog="share-dialog" aria-label="Close sharing options">
-          <span class="icon" data-icon="x" aria-hidden="true"></span>
-        </button>
-        <div class="share-mark" aria-hidden="true">
-          <span class="icon" data-icon="send"></span>
-        </div>
-        <p class="eyebrow">Share by permission</p>
-        <h2 id="share-dialog-title">Share this recipe</h2>
-        <p class="share-description" id="share-description"></p>
-
-        <div class="share-options">
-          <label class="toggle-row compact">
-            <span>
-              <strong>Include secret note</strong>
-              <small>The recipient will see the sealed technique.</small>
-            </span>
-            <input id="share-include-secret" type="checkbox" />
-            <span class="toggle-control" aria-hidden="true"></span>
-          </label>
-          <label class="form-field">
-            <span>Personal message</span>
-            <textarea id="share-message" rows="3" maxlength="300" placeholder="I wanted you to have this recipe because…"></textarea>
-          </label>
-        </div>
-
-        <div class="prototype-notice">
-          <span class="icon" data-icon="info" aria-hidden="true"></span>
-          <p>
-            This local-first prototype shares a recipe as text or a portable recipe file. Account-based, revocable links arrive with the secure cloud phase.
-          </p>
-        </div>
-
-        <div class="share-actions">
-          <button class="secondary-button" id="download-recipe-button" type="button">
-            <span class="icon" data-icon="file-down" aria-hidden="true"></span>
-            Recipe file
-          </button>
-          <button class="primary-button" id="share-recipe-button" type="button">
-            <span class="icon" data-icon="send" aria-hidden="true"></span>
-            Share recipe
-          </button>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog class="recipe-dialog" id="backup-dialog" aria-labelledby="backup-dialog-title">
-      <div class="dialog-surface backup-surface">
-        <button class="dialog-close" type="button" data-close-dialog="backup-dialog" aria-label="Close backup options">
-          <span class="icon" data-icon="x" aria-hidden="true"></span>
-        </button>
-        <p class="eyebrow">Protect your collection</p>
-        <h2 id="backup-dialog-title">Back up your vault</h2>
-        <p>Download a copy of every recipe or restore a Mangrok backup on this device.</p>
-        <div class="backup-options">
-          <button class="backup-option" id="export-vault-button" type="button">
-            <span class="backup-option-icon icon" data-icon="download" aria-hidden="true"></span>
-            <span><strong>Download backup</strong><small>Save a portable JSON file containing your full vault.</small></span>
-            <span class="icon" data-icon="chevron-right" aria-hidden="true"></span>
-          </button>
-          <button class="backup-option" id="import-vault-button" type="button">
-            <span class="backup-option-icon icon" data-icon="upload" aria-hidden="true"></span>
-            <span><strong>Restore backup</strong><small>Import recipes from a previous Mangrok backup.</small></span>
-            <span class="icon" data-icon="chevron-right" aria-hidden="true"></span>
-          </button>
-          <input id="import-vault-input" type="file" accept="application/json,.json" hidden />
-        </div>
-      </div>
-    </dialog>
-
-    <div class="vault-lock-screen" id="vault-lock-screen" hidden>
-      <div class="lock-card">
-        <span class="lock-mark" aria-hidden="true">
-          <svg viewBox="0 0 48 48">
-            <path d="M12 9.5h18.5A5.5 5.5 0 0 1 36 15v23.5H17.5A5.5 5.5 0 0 1 12 33V9.5Z" />
-            <path d="M36 15h-5a4 4 0 0 0-4 4v19.5" />
-          </svg>
-        </span>
-        <p class="eyebrow">Screen hidden</p>
-        <h1>Your vault is covered.</h1>
-        <p>This privacy screen hides recipes from casual view. It is not account authentication or device encryption.</p>
-        <button class="primary-button" id="unlock-button" type="button">
-          <span class="icon" data-icon="unlock" aria-hidden="true"></span>
-          Open vault
-        </button>
-      </div>
-    </div>
-
-    <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="true"></div>
-    <section class="print-book-output" id="print-book-output" aria-hidden="true"></section>
-
-    <script type="module" src="./app.js"></script>
-  </body>
+  <script src="runtime-config.js"></script>
+  <script type="module" src="src/app.js"></script>
+</body>
 </html>

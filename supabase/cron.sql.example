@@ -1,0 +1,9 @@
+-- Store the URL and secret in Supabase Vault; do not commit real values.
+-- Example schedule after deploying legacy-review:
+-- select cron.schedule('mangrok-legacy-review','17 3 * * *', $$
+--   select net.http_post(
+--     url := '<SUPABASE_URL>/functions/v1/legacy-review',
+--     headers := jsonb_build_object('content-type','application/json','x-mangrok-cron-secret','<VAULT_SECRET>'),
+--     body := '{}'::jsonb
+--   );
+-- $$);

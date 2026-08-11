@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Mangrok</title>
-  <desc id="desc">An open recipe book with a preserved leaf.</desc>
-  <rect width="512" height="512" rx="116" fill="#173c32"/>
-  <path d="M122 103h196c43 0 78 35 78 78v228H203c-45 0-81-36-81-81V103Z" fill="none" stroke="#f8f3e8" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M396 181h-52c-39 0-70 31-70 70v158" fill="none" stroke="#f8f3e8" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M190 218c55-54 123-45 157-31-15 39-56 91-143 87" fill="none" stroke="#d8c596" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M205 274c37 2 75 22 96 58" fill="none" stroke="#d8c596" stroke-width="21" stroke-linecap="round"/>
+  <title id="title">Mangrok mark</title><desc id="desc">A sealed recipe book with a leaf-shaped keyhole.</desc>
+  <rect width="512" height="512" rx="112" fill="#143d33"/>
+  <path d="M126 92h218c24 0 42 18 42 42v270c-25-14-54-21-87-21H126c-22 0-40-18-40-40V132c0-22 18-40 40-40Z" fill="#f7e8c8"/>
+  <path d="M146 132h178c16 0 29 13 29 29v184c-18-6-38-9-60-9H146c-9 0-16-7-16-16V148c0-9 7-16 16-16Z" fill="#fffaf0" stroke="#b58a4a" stroke-width="10"/>
+  <path d="M256 178c-40 27-52 68-26 101 11 14 18 31 19 50h14c1-19 8-36 19-50 26-33 14-74-26-101Z" fill="#b04432"/>
+  <circle cx="256" cy="247" r="18" fill="#f7e8c8"/>
+  <rect x="249" y="258" width="14" height="49" rx="7" fill="#f7e8c8"/>
+  <path d="M102 402h274" stroke="#b58a4a" stroke-width="18" stroke-linecap="round"/>
 </svg>
