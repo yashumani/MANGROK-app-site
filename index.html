@@ -124,8 +124,23 @@
   </div>
 
   <nav class="mobile-nav" aria-label="Mobile navigation">
-    <button class="active" data-view="vault">Vault</button><button data-view="circles">Circles</button><button data-view="print">Print</button><button data-view="legacy">Legacy</button><button data-view="settings">Settings</button>
+    <button class="active" data-view="vault">Vault</button><button data-view="circles">Circles</button><button data-view="print">Print</button><button type="button" id="mobile-more-button" aria-haspopup="dialog" aria-controls="mobile-more-dialog">More</button>
   </nav>
+
+  <dialog id="mobile-more-dialog" class="mobile-more-dialog" aria-labelledby="mobile-more-title">
+    <div class="mobile-more-sheet">
+      <header><div><p class="eyebrow">Mangrok</p><h2 id="mobile-more-title">More</h2></div><button class="button ghost" type="button" id="mobile-more-close">Close</button></header>
+      <nav aria-label="More Mangrok destinations">
+        <button type="button" data-view="legacy"><b>Legacy</b><small>Future custodianship and release instructions</small></button>
+        <button type="button" data-view="settings"><b>Settings</b><small>Cloud, backups, readiness, and privacy controls</small></button>
+      </nav>
+      <div class="mobile-more-actions">
+        <button type="button" data-mobile-action="activity"><b>Activity</b><small>Review notifications and access changes</small></button>
+        <button type="button" data-mobile-action="account"><b>Account</b><small>Connect or manage your private cloud vault</small></button>
+        <button type="button" data-mobile-action="theme"><b>Appearance</b><small>Switch between day and night presentation</small></button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="recipe-dialog" class="modal wide-modal">
     <form method="dialog" class="modal-shell" id="recipe-form">
