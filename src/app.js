@@ -73,7 +73,9 @@ function bindEvents() {
   window.addEventListener("mangrok:save-alchemy-experiment", event => respondToBridge(event, saveAlchemyExperiment(event.detail?.experiment)));
   window.addEventListener("mangrok:list-alchemy-experiments", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listAlchemyExperiments(event.detail?.limit) : []));
   window.addEventListener("mangrok:request-print-draft", event => respondToBridge(event, printDraftOptions()));
-  window.addEventListener("hashchange", () => { const view = location.hash.slice(1); if (viewMeta[view]) switchView(view, false); });
+  const followHistory = () => { const view = location.hash.slice(1); if (viewMeta[view]) switchView(view, false); };
+  window.addEventListener("hashchange", followHistory);
+  window.addEventListener("popstate", followHistory);
 }
 
 async function establishMode(fromAuthEvent = false) {
@@ -112,12 +114,20 @@ function renderMode() {
   $("#auth-button").textContent = online ? "Account" : "Connect cloud";
 }
 function switchView(view, updateHash = true) {
+  if (!viewMeta[view]) return;
+  const previousView = state.currentView;
   state.currentView = view;
   $$('[data-view-panel]').forEach(panel => panel.classList.toggle("active", panel.dataset.viewPanel === view));
-  $$('[data-view]').forEach(button => button.classList.toggle("active", button.dataset.view === view));
+  $$('[data-view]').forEach(button => {
+    const active = button.dataset.view === view;
+    button.classList.toggle("active", active);
+    active ? button.setAttribute("aria-current", "page") : button.removeAttribute("aria-current");
+  });
   $("#view-eyebrow").textContent = viewMeta[view][0]; $("#view-title").textContent = viewMeta[view][1];
   $("#new-recipe-button").hidden = view !== "vault";
-  if (updateHash) history.replaceState(null, "", `#${view}`);
+  const nextHash = `#${view}`;
+  if (updateHash && location.hash !== nextHash) history.pushState({ view }, "", nextHash);
+  window.dispatchEvent(new CustomEvent("mangrok:view-changed", { detail: { view, previousView } }));
   $("#main").focus({ preventScroll: true });
 }
 
@@ -331,7 +341,7 @@ async function registerServiceWorker(){
 function showUpdateNotice(){if(document.querySelector("#mangrok-update-notice"))return;const version=String(window.MANGROK_CONFIG?.appVersion||"new");const node=document.createElement("aside");node.id="mangrok-update-notice";node.className="update-notice";node.setAttribute("role","status");node.innerHTML=`<div><b>A new Mangrok version is ready</b><p>Reload to use the latest Alchemy, kitchen, and Print Studio improvements.</p></div><button class="button primary" type="button">Reload</button><button class="button ghost" type="button" data-update-dismiss>Later</button>`;document.body.append(node);node.querySelector(".primary").onclick=()=>{writeSessionValue("mangrok.update-notice",version);location.reload()};node.querySelector("[data-update-dismiss]").onclick=()=>{writeSessionValue("mangrok.update-notice",version);node.remove()};}
 function readSessionValue(key){try{return sessionStorage.getItem(key)}catch{return null}}
 function writeSessionValue(key,value){try{sessionStorage.setItem(key,value)}catch{}}
-function appStatus(){return{appVersion:String(window.MANGROK_CONFIG?.appVersion||"unversioned"),mode:state.mode,cloudConfigured:state.cloud.enabled,signedIn:state.mode==="cloud",userEmail:state.cloud.user?.email||"",recipeCount:state.recipes.length,bookCount:state.books.length,legacyPlanCount:state.legacyPlans.length};}
+function appStatus(){return{appVersion:String(window.MANGROK_CONFIG?.appVersion||"unversioned"),mode:state.mode,currentView:state.currentView,cloudConfigured:state.cloud.enabled,signedIn:state.mode==="cloud",userEmail:state.cloud.user?.email||"",recipeCount:state.recipes.length,bookCount:state.books.length,legacyPlanCount:state.legacyPlans.length};}
 function respondToBridge(event,value){const resolve=event.detail?.resolve,reject=event.detail?.reject;if(typeof resolve!=="function")return;Promise.resolve(value).then(resolve,error=>typeof reject==="function"?reject(error):resolve(null));}
 async function invokeAlchemyGateway(detail={}){if(state.mode!=="cloud")throw new Error("Sign in before using the Mangrok subscriber gateway.");return state.cloud.runAlchemyGateway({messages:detail.messages,requestId:detail.requestId});}
 async function saveAlchemyExperiment(experiment){if(state.mode!=="cloud"||!experiment)return null;return state.cloud.saveAlchemyExperiment(experiment);}

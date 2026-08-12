@@ -7,7 +7,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const required = [
   "index.html", "styles.css", "runtime-config.js", "manifest.webmanifest", "sw.js",
   "src/app.js", "src/cloud.js", "src/print.js", "src/kitchen-library.js", "src/kitchen-ui.js",
-  "src/culinary-engine.js", "src/local-ai.js", "src/entitlements.js", "src/readiness.js", "src/generated-images.js",
+  "src/culinary-engine.js", "src/local-ai.js", "src/entitlements.js", "src/readiness.js", "src/mobile-shell.js", "src/generated-images.js",
   "assets/generated/hero.svg", "assets/generated/ingredients.svg", "assets/generated/equipment.svg",
   "assets/generated/insights.svg", "assets/generated/evolution.svg",
   "src/alchemy-ui.js",
@@ -61,10 +61,10 @@ for (const symbol of ["⌂", "⌕", "▤", "◇", "◎", "♢", "⚙", "✦", "�
 
 const runtime = await readFile(path.join(root, "runtime-config.js"), "utf8");
 const serviceWorker = await readFile(path.join(root, "sw.js"), "utf8");
-for (const phrase of ["appVersion", "alchemyFunctionName", "src/readiness.js", "src/entitlements.js"]) {
+for (const phrase of ["appVersion", "alchemyFunctionName", "src/readiness.js", "src/entitlements.js", "src/mobile-shell.js"]) {
   if (!runtime.includes(phrase) && !serviceWorker.includes(phrase)) throw new Error(`Missing production-readiness contract: ${phrase}`);
 }
-if (!/mangrok-v6-mobile-progress/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the mobile progress release.");
+if (!/mangrok-v7-mobile-app-shell/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the mobile app-shell release.");
 
 const alchemyFunction = await readFile(path.join(root, "supabase/functions/alchemy-ai/index.ts"), "utf8");
 for (const phrase of ["p_request_id", "refund_alchemy_credit", "model_gateway_timeout", "origin_not_allowed"]) {

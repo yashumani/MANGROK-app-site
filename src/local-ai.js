@@ -56,14 +56,14 @@ export async function enhanceWithLocalAI({
     model = String(config.webllmModel || DEFAULT_WEBLLM_MODEL);
     completionText = await runWebLLM(messages, model, onProgress, signal);
   } else if (provider === "gateway") {
-    onProgress({ text: "Checking subscriber access and contacting the private model.", progress: 28 });
+    onProgress({ text: "Checking subscriber access and contacting the private model.", progress: 38, stage: "model", measured: false });
     const payload = await runMangrokGateway({
       messages,
       requestId,
       timeoutMs: Number(config.aiGatewayTimeoutMs) || 65_000,
       signal
     });
-    onProgress({ text: "The private model responded. Validating the structured insight.", progress: 92 });
+    onProgress({ text: "The private model responded. Validating the structured insight.", progress: 92, stage: "validate", measured: false });
     completionText = extractCompletionText(payload?.completion ?? payload);
     model = String(payload?.model || config.aiGatewayModel || "Mangrok private model");
     entitlement = payload?.entitlement || null;
@@ -71,7 +71,7 @@ export async function enhanceWithLocalAI({
     latencyMs = finiteOrNull(payload?.latencyMs);
   } else {
     model = String(config.ollamaModel || "llama3.2");
-    onProgress({ text: "Contacting the self-hosted model and sending the structured recipe formula.", progress: 28 });
+    onProgress({ text: "Contacting the self-hosted model and sending the structured recipe formula.", progress: 38, stage: "model", measured: false });
     completionText = await runOpenAICompatible({
       baseUrl: config.ollamaBaseUrl || "http://127.0.0.1:11434/v1",
       model,
@@ -80,11 +80,11 @@ export async function enhanceWithLocalAI({
       timeoutMs: Number(config.localAiTimeoutMs) || DEFAULT_LOCAL_AI_TIMEOUT_MS,
       signal
     });
-    onProgress({ text: "The self-hosted model responded. Validating the structured insight.", progress: 92 });
+    onProgress({ text: "The self-hosted model responded. Validating the structured insight.", progress: 92, stage: "validate", measured: false });
   }
 
   throwIfAborted(signal);
-  onProgress({ text: "Merging AI reasoning with the deterministic culinary simulation.", progress: 96 });
+  onProgress({ text: "Merging AI reasoning with the deterministic culinary simulation.", progress: 96, stage: "validate", measured: false });
   const structured = parseStructuredResponse(completionText);
   return {
     result: mergeAIInsight(simulation, structured),
@@ -99,7 +99,7 @@ export async function enhanceWithLocalAI({
 async function runWebLLM(messages, model, onProgress, signal) {
   if (!globalThis.navigator?.gpu) throw new Error("On-device AI requires a WebGPU-capable browser and device.");
   throwIfAborted(signal);
-  onProgress({ text: "Loading the WebLLM runtime on this device.", progress: 22 });
+  onProgress({ text: "Loading the WebLLM runtime on this device.", progress: 22, stage: "model", measured: false });
 
   if (!enginePromise || loadedModel !== model) {
     loadedModel = model;
@@ -112,7 +112,9 @@ async function runWebLLM(messages, model, onProgress, signal) {
             const mapped = Number.isFinite(raw) ? Math.round(24 + Math.max(0, Math.min(1, raw)) * 58) : null;
             onProgress({
               progress: mapped,
-              text: String(progress?.text || "Downloading and preparing the on-device model.")
+              text: String(progress?.text || "Downloading and preparing the on-device model."),
+              stage: "model",
+              measured: Number.isFinite(raw)
             });
           }
         });
@@ -126,7 +128,7 @@ async function runWebLLM(messages, model, onProgress, signal) {
 
   const engine = await enginePromise;
   throwIfAborted(signal);
-  onProgress({ text: "The on-device model is reasoning through flavor, technique, and risk.", progress: 86 });
+  onProgress({ text: "The on-device model is reasoning through flavor, technique, and risk.", progress: 86, stage: "reason", measured: false });
   const value = await engine.chat.completions.create({
     messages,
     temperature: 0.25,
@@ -135,7 +137,7 @@ async function runWebLLM(messages, model, onProgress, signal) {
     stream: false
   });
   throwIfAborted(signal);
-  onProgress({ text: "The on-device model responded. Validating the structured insight.", progress: 94 });
+  onProgress({ text: "The on-device model responded. Validating the structured insight.", progress: 94, stage: "validate", measured: false });
   return extractCompletionText(value);
 }
 
