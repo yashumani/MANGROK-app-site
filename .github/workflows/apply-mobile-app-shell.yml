@@ -1,0 +1,79 @@
+name: Apply Mangrok mobile app-shell refinement
+
+on:
+  push:
+    branches:
+      - agent/mobile-app-shell-refinement
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-mobile-app-shell-refinement
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out staged release
+        uses: actions/checkout@v6
+        with:
+          ref: agent/mobile-app-shell-refinement
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconstruct verified refinement
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .release/mobile-app-shell.part* | base64 --decode > /tmp/mangrok-mobile-app-shell.zip
+          echo "d34d473ad089462102b0ec0efc6fa239281198583ceff087102e45624554fb09  /tmp/mangrok-mobile-app-shell.zip" | sha256sum --check -
+          unzip -t /tmp/mangrok-mobile-app-shell.zip
+          unzip -o /tmp/mangrok-mobile-app-shell.zip -d .
+
+      - name: Remove temporary transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .release
+          rm -f .github/workflows/apply-mobile-app-shell.yml
+
+      - name: Verify refinement source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/mobile-shell.js
+          grep -q '3.3.0-alpha.4' runtime-config.js
+          grep -q 'mangrok-v7-mobile-app-shell' sw.js
+          grep -q 'mobile-more-dialog' index.html
+          grep -q 'visualViewport' src/mobile-shell.js
+          grep -q 'Step 1 of 4' src/alchemy-ui.js
+          grep -q 'mobile-shell.js' runtime-config.js
+          if find . -path './.git' -prune -o -path './.release' -print -quit | grep -q .; then
+            echo 'Temporary release transport remains.'
+            exit 1
+          fi
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Run complete release gate
+        run: npm run check
+
+      - name: Commit reviewable refinement source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No refinement changes were materialized.'
+            exit 1
+          fi
+          git commit -m 'Refine Mangrok mobile app shell and AI progress'
+          git push origin HEAD:agent/mobile-app-shell-refinement
