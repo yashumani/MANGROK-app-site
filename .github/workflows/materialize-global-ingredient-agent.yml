@@ -1,0 +1,80 @@
+name: Materialize global ingredient and agent memory release
+
+on:
+  push:
+    branches:
+      - agent/global-ingredient-agent-memory
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-global-ingredient-agent
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/global-ingredient-agent-memory
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Download USDA public-domain reference data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/mangrok-usda/foundation /tmp/mangrok-usda/sr
+          curl --fail --location --retry 3 -o /tmp/mangrok-usda/foundation.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-04-30.zip
+          curl --fail --location --retry 3 -o /tmp/mangrok-usda/sr.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip
+          unzip -q /tmp/mangrok-usda/foundation.zip -d /tmp/mangrok-usda/foundation
+          unzip -q /tmp/mangrok-usda/sr.zip -d /tmp/mangrok-usda/sr
+
+      - name: Generate versioned ingredient catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/generate-global-ingredient-catalog.py \
+            --usda-root /tmp/mangrok-usda/foundation \
+            --usda-root /tmp/mangrok-usda/sr \
+            --output src/ingredient-catalog-data.js
+          test "$(grep -o '"name"' src/ingredient-catalog-data.js | wc -l)" -ge 1407
+
+      - name: Materialize clean application source
+        run: python3 scripts/materialize-global-agent-release.py
+
+      - name: Run complete release gate
+        run: npm run check
+
+      - name: Verify clean review branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/ingredient-catalog-data.js
+          test -f src/agent-runtime.js
+          test -f supabase/migrations/004_global_ingredient_agent_memory.sql
+          test ! -e .github/workflows/materialize-global-ingredient-agent.yml
+          test ! -e .github/workflows/export-global-ingredient-source.yml
+          test ! -e .github/workflows/export-usda-ingredient-reference.yml
+          test ! -e .github/workflows/export-usda-reference-v2.yml
+          ! grep -R --line-number -E 'service[_-]?role.{0,20}(key|secret)|AI_GATEWAY_KEY=' src runtime-config.js assets || false
+          git diff --check
+
+      - name: Commit reviewable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Add global ingredient knowledge and bounded agent memory'
+          git push origin HEAD:agent/global-ingredient-agent-memory

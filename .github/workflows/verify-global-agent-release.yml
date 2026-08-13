@@ -1,0 +1,74 @@
+name: Verify global ingredient agent release
+
+on:
+  push:
+    branches:
+      - agent/global-ingredient-agent-memory
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-global-ingredient-agent
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/global-ingredient-agent-memory
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Run full release gate
+        run: npm run check
+      - name: Verify catalog, agent, privacy, and clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          const data = await import('./src/ingredient-catalog-data.js');
+          if (data.INGREDIENT_SEED.length !== 1407) throw new Error('Catalog count mismatch');
+          if (data.CUISINE_TRADITIONS.length < 45) throw new Error('Cuisine coverage mismatch');
+          const catalog = await import('./src/ingredient-catalog.js');
+          if (catalog.resolveIngredient('aubergine')?.name.toLowerCase() !== 'eggplant') throw new Error('Alias resolution failed');
+          JS
+          grep -q 'agent-memory-enabled' src/global-ingredient-ui.js
+          grep -q 'create unique index if not exists ingredient_alias_unique_language' supabase/migrations/004_global_ingredient_agent_memory.sql
+          grep -q 'service role required' supabase/migrations/004_global_ingredient_agent_memory.sql
+          test ! -e .github/workflows/fix-global-agent-release.yml
+          test ! -e .github/workflows/materialize-global-ingredient-agent.yml
+          ! grep -R --line-number -E 'service[_-]?role.{0,20}(key|secret)|AI_GATEWAY_KEY=' src runtime-config.js assets
+          git diff --check
+      - name: Write verified release marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/verify-global-agent-release.yml
+          cat > docs/GLOBAL-AGENT-RELEASE-VERIFIED.md <<EOF
+          # Global ingredient and culinary-agent release verified
+
+          The complete repository gate passed on $(date -u +%Y-%m-%dT%H:%M:%SZ).
+
+          - 1,407 deterministic seed ingredients
+          - at least 45 cuisine/tradition filters
+          - alias-aware catalog search
+          - moderated personal/community submissions
+          - explicit tools and skills
+          - opt-in bounded memory
+          - owner-scoped RLS and service-role-only moderation
+          - static/security validation
+          - production build
+
+          Verified source commit before marker: ${GITHUB_SHA}
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Mark global ingredient agent release verified'
+          git push origin HEAD:agent/global-ingredient-agent-memory

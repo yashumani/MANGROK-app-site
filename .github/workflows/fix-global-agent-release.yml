@@ -1,0 +1,163 @@
+name: Fix global ingredient agent release regressions
+
+on:
+  push:
+    branches:
+      - agent/global-ingredient-agent-memory
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-global-agent-fix
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v6
+        with:
+          ref: agent/global-ingredient-agent-memory
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Apply release fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, label):
+              p=Path(path); text=p.read_text(encoding='utf-8')
+              if old not in text: raise SystemExit(f'{label}: expected source fragment not found')
+              p.write_text(text.replace(old,new,1),encoding='utf-8')
+
+          replace('src/agent-tools.js', '''    if (tool.confirmationRequired && !context.confirmedTools?.has?.(name)) throw new Error(`${name} requires explicit confirmation.`);
+              const safeArgs = validateArgs(tool.inputSchema, args);
+              const startedAt = Date.now();
+              try {
+                const output = await tool.handler(safeArgs, context);''', '''    const startedAt = Date.now();
+              try {
+                if (tool.confirmationRequired && !context.confirmedTools?.has?.(name)) throw new Error(`${name} requires explicit confirmation.`);
+                const safeArgs = validateArgs(tool.inputSchema, args);
+                const output = await tool.handler(safeArgs, context);''', 'tool confirmation handling')
+
+          replace('src/agent-memory.js', '.map(structuredClone);', '.map(value => structuredClone(value));', 'memory clone mapping')
+
+          replace('src/ingredient-submissions.js', '''  constructor({ cloud = null } = {}) {
+                this.cloud = cloud;
+                this.dbPromise = null;
+              }''', '''  constructor({ cloud = null } = {}) {
+                this.cloud = cloud;
+                this.dbPromise = null;
+                this.fallback = new Map(readFallback().map(row => [row.id, row]));
+              }''', 'submission fallback constructor')
+          replace('src/ingredient-submissions.js', '''    if (!db) {
+                  const rows = readFallback().filter(row => row.id !== value.id && row.clientRequestId !== value.clientRequestId);
+                  rows.unshift(value); writeFallback(rows.slice(0, MAX_LOCAL)); return value;
+                }''', '''    if (!db) {
+                  for (const [id, row] of this.fallback) if (row.clientRequestId === value.clientRequestId && id !== value.id) this.fallback.delete(id);
+                  this.fallback.set(value.id, structuredClone(value));
+                  writeFallback([...this.fallback.values()].sort((a,b)=>Date.parse(b.updatedAt)-Date.parse(a.updatedAt)).slice(0,MAX_LOCAL));
+                  return value;
+                }''', 'submission fallback put')
+          replace('src/ingredient-submissions.js', '''    if (!db) return readFallback().find(row => row.id === id) || null;''', '''    if (!db) return structuredClone(this.fallback.get(id) || null);''', 'submission fallback get')
+          replace('src/ingredient-submissions.js', '''    if (!db) return readFallback();''', '''    if (!db) return [...this.fallback.values()].map(value => structuredClone(value));''', 'submission fallback all')
+          replace('src/ingredient-submissions.js', '''    if (!db) { const rows = readFallback().filter(row => row.id !== id); writeFallback(rows); return; }''', '''    if (!db) { this.fallback.delete(id); writeFallback([...this.fallback.values()]); return; }''', 'submission fallback delete')
+
+          p=Path('src/agent-runtime.js'); text=p.read_text(encoding='utf-8')
+          text=text.replace('cloudMemory: Boolean(this.cloud), syncCloud: Boolean(this.cloud)', 'cloudMemory: Boolean(this.cloud?.enabled), syncCloud: Boolean(this.cloud?.enabled)')
+          text=text.replace('cloud: Boolean(this.cloud) })', 'cloud: Boolean(this.cloud?.enabled) })')
+          text=text.replace('syncCloud: Boolean(this.cloud) })', 'syncCloud: Boolean(this.cloud?.enabled) })')
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('src/local-ai.js'); text=p.read_text(encoding='utf-8')
+          text=text.replace('localStorage?.getItem("mangrok.agent.memory.enabled")!=="false"', 'localStorage?.getItem("mangrok.agent.memory.enabled")==="true"')
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('src/global-ingredient-ui.js'); text=p.read_text(encoding='utf-8')
+          text=text.replace('''  addCatalogPanel();
+            addSubmissionDialog();''','''  addCatalogPanel();
+            addAgentMemoryPanel();
+            addSubmissionDialog();''',1)
+          text=text.replace('localStorage.getItem("mangrok.agent.memory.enabled") !== "false"','localStorage.getItem("mangrok.agent.memory.enabled") === "true"')
+          marker='function addSubmissionDialog() {'
+          memory_panel='''function addAgentMemoryPanel() {
+            const settings = document.querySelector("#view-settings .settings-grid");
+            if (!settings || document.querySelector("#agent-memory-panel")) return;
+            const enabled = localStorage.getItem("mangrok.agent.memory.enabled") === "true";
+            const panel = document.createElement("section");
+            panel.id = "agent-memory-panel";
+            panel.className = "panel agent-memory-panel";
+            panel.innerHTML = `
+              <p class="eyebrow">Hermes-inspired bounded memory</p>
+              <h3>Agent memory</h3>
+              <p>Mangrok can recall concise, confirmed preferences and session summaries. It never treats sealed notes, credentials, passphrases, decryption material, or full recipes as agent memory.</p>
+              <label class="agent-memory-consent"><input id="agent-memory-enabled" type="checkbox" ${enabled ? "checked" : ""}><span><b>Enable agent memory on this device</b><small>Memory is off by default. Individual memory writes and catalog submissions still require explicit confirmation.</small></span></label>`;
+            settings.append(panel);
+            panel.querySelector("#agent-memory-enabled").addEventListener("change", event => {
+              const next = Boolean(event.currentTarget.checked);
+              localStorage.setItem("mangrok.agent.memory.enabled", String(next));
+              getMangrokAgentRuntime({ cloud: cloudBridge(), memoryEnabled: next });
+              announce(next ? "Agent memory enabled for confirmed preferences and session summaries." : "Agent memory disabled.");
+            });
+          }
+
+          '''
+          if marker not in text: raise SystemExit('memory panel insertion marker missing')
+          text=text.replace(marker,memory_panel+marker,1)
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('supabase/migrations/004_global_ingredient_agent_memory.sql'); text=p.read_text(encoding='utf-8')
+          text=text.replace("''', source_name text, created_at timestamptz not null default now(),\n  unique(ingredient_id,alias_key,coalesce(language_code,''))\n);", "''', source_name text, created_at timestamptz not null default now()\n);\ncreate unique index if not exists ingredient_alias_unique_language on public.ingredient_aliases(ingredient_id,alias_key,coalesce(language_code,''));") if False else text
+          old="""  language_code text, region text, script text, source_name text, created_at timestamptz not null default now(),
+  unique(ingredient_id,alias_key,coalesce(language_code,''))
+);
+create index if not exists ingredient_alias_key_trgm"""
+          new="""  language_code text, region text, script text, source_name text, created_at timestamptz not null default now()
+);
+create unique index if not exists ingredient_alias_unique_language on public.ingredient_aliases(ingredient_id,alias_key,coalesce(language_code,''));
+create index if not exists ingredient_alias_key_trgm"""
+          if old not in text: raise SystemExit('alias constraint marker missing')
+          text=text.replace(old,new,1)
+          text=text.replace("create policy agent_messages_owner_all on public.agent_messages for all to authenticated using(owner_id=auth.uid()) with check(owner_id=auth.uid());", "create policy agent_messages_owner_all on public.agent_messages for all to authenticated using(owner_id=auth.uid() and exists(select 1 from public.agent_sessions s where s.id=session_id and s.owner_id=auth.uid())) with check(owner_id=auth.uid() and exists(select 1 from public.agent_sessions s where s.id=session_id and s.owner_id=auth.uid()));")
+          text=text.replace("create policy agent_tool_runs_owner_all on public.agent_tool_runs for all to authenticated using(owner_id=auth.uid()) with check(owner_id=auth.uid());", "create policy agent_tool_runs_owner_all on public.agent_tool_runs for all to authenticated using(owner_id=auth.uid() and (session_id is null or exists(select 1 from public.agent_sessions s where s.id=session_id and s.owner_id=auth.uid()))) with check(owner_id=auth.uid() and (session_id is null or exists(select 1 from public.agent_sessions s where s.id=session_id and s.owner_id=auth.uid())));")
+          for name,limit in [('p_aliases',16),('p_cuisines',16),('p_regions',12),('p_dietary',12),('p_allergens',12)]:
+              text=text.replace(f"coalesce({name},'{{}}')",f"coalesce({name}[1:{limit}],'{{}}')")
+          p.write_text(text,encoding='utf-8')
+
+          workflow=Path('.github/workflows/fix-global-agent-release.yml')
+          workflow.unlink()
+          PY
+
+      - name: Run complete release gate
+        run: npm run check
+
+      - name: Verify clean source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/fix-global-agent-release.yml
+          grep -q 'create unique index if not exists ingredient_alias_unique_language' supabase/migrations/004_global_ingredient_agent_memory.sql
+          grep -q 'agent-memory-enabled' src/global-ingredient-ui.js
+          grep -q 'mangrok.agent.memory.enabled.*===.*true' src/local-ai.js
+          git diff --check
+
+      - name: Commit corrected release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Harden global ingredient agent release'
+          git push origin HEAD:agent/global-ingredient-agent-memory

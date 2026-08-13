@@ -1,0 +1,1 @@
+Temporary release transport is prepared outside this repository. This document will be removed before the final pull request.

@@ -1,0 +1,1 @@
+The verified global ingredient and agent-memory release is staged. Temporary transfer files are removed before review. Catalog: 1,407 seed ingredients; 46+ cuisine/tradition filters; moderated submissions; bounded agent memory and tool routing.

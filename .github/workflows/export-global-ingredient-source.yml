@@ -1,0 +1,22 @@
+name: Export Mangrok global ingredient source
+
+on:
+  push:
+    branches:
+      - agent/global-ingredient-agent-memory
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Upload complete source
+        uses: actions/upload-artifact@v4
+        with:
+          name: mangrok-global-ingredient-source
+          path: .
+          include-hidden-files: true
+          retention-days: 1

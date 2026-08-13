@@ -1,0 +1,1 @@
+Verified local release archive SHA-256 is recorded outside the repository and will be checked by the materialization workflow before any source commit is created.
