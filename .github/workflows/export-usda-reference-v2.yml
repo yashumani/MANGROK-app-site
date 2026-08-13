@@ -1,0 +1,56 @@
+name: Export corrected USDA ingredient reference
+
+on:
+  push:
+    branches:
+      - agent/global-ingredient-agent-memory
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download public-domain USDA food names
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/usda-ref /tmp/out
+          curl --fail --location --retry 3 -o /tmp/usda-ref/foundation.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-04-30.zip
+          curl --fail --location --retry 3 -o /tmp/usda-ref/sr.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip
+          unzip -q /tmp/usda-ref/foundation.zip -d /tmp/usda-ref/foundation
+          unzip -q /tmp/usda-ref/sr.zip -d /tmp/usda-ref/sr
+          python3 - <<'PY'
+          import json, pathlib, re
+          rows_out=[]
+          for group, root in [('foundation', pathlib.Path('/tmp/usda-ref/foundation')), ('sr_legacy', pathlib.Path('/tmp/usda-ref/sr'))]:
+              for path in root.rglob('*.json'):
+                  data=json.loads(path.read_text(encoding='utf-8-sig'))
+                  rows=data if isinstance(data,list) else []
+                  if isinstance(data,dict):
+                      for key in ('FoundationFoods','SRLegacyFoods','foods'):
+                          if isinstance(data.get(key),list): rows=data[key]; break
+                  for row in rows:
+                      if not isinstance(row,dict): continue
+                      name=str(row.get('description') or row.get('lowercaseDescription') or '').strip()
+                      if not name: continue
+                      value=row.get('foodCategory')
+                      category=value.get('description') if isinstance(value,dict) else value
+                      rows_out.append({'name':name,'source':group,'fdcId':row.get('fdcId'),'category':category})
+          seen=set(); clean=[]
+          for row in rows_out:
+              key=re.sub(r'[^a-z0-9]+',' ',row['name'].lower()).strip()
+              if key and key not in seen:
+                  seen.add(key); clean.append(row)
+          pathlib.Path('/tmp/out/usda-food-names.json').write_text(json.dumps(clean,ensure_ascii=False,indent=2),encoding='utf-8')
+          pathlib.Path('/tmp/out/README.txt').write_text('USDA FoodData Central Foundation Foods April 2026 and SR Legacy April 2018. CC0/public-domain source; attribution requested.\n',encoding='utf-8')
+          print(f'exported {len(clean)} names')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: usda-ingredient-reference-v2
+          path: /tmp/out
+          retention-days: 1
