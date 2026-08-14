@@ -1,0 +1,23 @@
+name: Export granular v2 base
+
+on:
+  push:
+    branches:
+      - agent/granular-ingredient-v2
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare source archive
+        run: git archive --format=zip --output=/tmp/mangrok-base.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mangrok-granular-v2-base
+          path: /tmp/mangrok-base.zip
+          retention-days: 1
