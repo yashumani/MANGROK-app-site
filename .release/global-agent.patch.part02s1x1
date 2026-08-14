@@ -1,0 +1,21 @@
+),matches=technique.equipment.filter(v=>names.some(n=>n.includes(v.toLowerCase())||v.toLowerCase().includes(n)));return{score:equipment.length?(matches.length?96:58):45,matches,ideal:technique.equipment,message:matches.length?`${matches[0]} suits this method.`:`Consider ${technique.equipment.slice(0,2).join(" or ")} for this technique.`}}
+diff --git a/src/kitchen-library.js b/src/kitchen-library.js
+index bd0e410..46f20de 100644
+--- a/src/kitchen-library.js
++++ b/src/kitchen-library.js
+@@ -1,7 +1,16 @@
+ /**
+- * Curated data library for Mangrok recipe entry.
+- * Visuals are rendered from original generated culinary photography; this module stores labels only.
++ * Mangrok global kitchen catalog.
++ * Ingredient knowledge is versioned and facet-aware; equipment remains locally curated.
+  */
++import {
++  INGREDIENT_CATALOG,
++  INGREDIENT_CATALOG_STATS,
++  INGREDIENT_CATALOG_VERSION,
++  catalogFacetOptions,
++  resolveIngredient,
++  searchIngredientCatalog
++} from "./ingredient-catalog.js";
++
