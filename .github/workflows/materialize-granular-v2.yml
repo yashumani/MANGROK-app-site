@@ -1,0 +1,75 @@
+name: Materialize granular ingredient catalog v2
+
+on:
+  push:
+    branches:
+      - agent/granular-ingredient-v2
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Download public USDA reference data
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/usda/foundation /tmp/usda/legacy
+          curl --fail --location --retry 3 -o /tmp/usda/foundation.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-04-30.zip
+          curl --fail --location --retry 3 -o /tmp/usda/legacy.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip
+          unzip -q /tmp/usda/foundation.zip -d /tmp/usda/foundation
+          unzip -q /tmp/usda/legacy.zip -d /tmp/usda/legacy
+      - name: Generate self-contained granular catalog
+        run: |
+          python3 scripts/generate-granular-v2.py \
+            --root /tmp/usda/foundation \
+            --root /tmp/usda/legacy \
+            --output src/ingredient-catalog-data.js \
+            --stats docs/ingredient-catalog-stats.json
+      - name: Wire agent context and release validation
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          package['version'] = '3.4.0-alpha.5'
+          package['description'] = 'A local-first recipe vault with a 4,301-entry granular ingredient catalog, bounded culinary agent memory, AI routing, and illustrated print studio.'
+          package_path.write_text(json.dumps(package, separators=(',', ':')) + '\n')
+
+          ai_path = Path('src/local-ai.js')
+          ai = ai_path.read_text()
+          if 'prepareCulinaryAgent' not in ai:
+              ai = ai.replace('import { buildAlchemyPrompt, mergeAIInsight } from "./culinary-engine.js";', 'import { buildAlchemyPrompt, mergeAIInsight } from "./culinary-engine.js";\nimport { prepareCulinaryAgent, mergeAgentMessages, attachAgentTrace } from "./agent-ai.js";')
+              ai = ai.replace('requestId = "", signal = null, gatewayInvoker = null', 'requestId = "", signal = null, gatewayInvoker = null, question = ""')
+              ai = ai.replace('  const messages = buildAlchemyPrompt(input, simulation);', '  const preparedAgent = await prepareCulinaryAgent({ input, simulation, query: question });\n  const messages = mergeAgentMessages(buildAlchemyPrompt(input, simulation), preparedAgent);')
+              ai = ai.replace('  return { result: mergeAIInsight(simulation, parseStructuredResponse(text)), provider, model };', '  return { result: attachAgentTrace(mergeAIInsight(simulation, parseStructuredResponse(text)), preparedAgent), provider, model };')
+          ai_path.write_text(ai)
+
+          validate_path = Path('scripts/validate.mjs')
+          validate = validate_path.read_text()
+          validate = validate.replace('"src/culinary-engine.js", "src/local-ai.js", "src/entitlements.js", "src/readiness.js", "src/mobile-shell.js", "src/generated-images.js",', '"src/culinary-engine.js", "src/local-ai.js", "src/entitlements.js", "src/readiness.js", "src/mobile-shell.js", "src/generated-images.js",\n  "src/ingredient-catalog-data.js", "src/ingredient-catalog.js", "src/ingredient-submissions.js", "src/alchemy-cuisine-ui.js",\n  "src/agent-system.js", "src/agent-skills.js", "src/agent-router.js", "src/agent-tools.js", "src/agent-cloud.js", "src/agent-memory.js", "src/agent-runtime.js", "src/agent-ai.js", "src/agent-memory-ui.js",')
+          validate = validate.replace('if (!/mangrok-v7-mobile-app-shell/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the mobile app-shell release.");', 'if (!/mangrok-v8-global-ingredient-agent/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the global ingredient release.");\n\nconst catalogStats = JSON.parse(await readFile(path.join(root, "docs/ingredient-catalog-stats.json"), "utf8"));\nif (catalogStats.count !== 4301) throw new Error(`Expected 4301 ingredients, found ${catalogStats.count}.`);\nif (catalogStats.aliases < 5000 || catalogStats.cuisines < 80) throw new Error("Ingredient alias or cuisine coverage is below the release threshold.");')
+          validate = validate.replace('console.log("Mangrok Alchemy static validation passed.");', 'console.log(`Mangrok granular ingredient and agent validation passed (${catalogStats.count} ingredients).`);')
+          validate_path.write_text(validate)
+      - name: Remove one-time workflows
+        run: rm -f .github/workflows/export-granular-v2-base.yml .github/workflows/materialize-granular-v2.yml
+      - name: Run full release gate
+        run: npm run check
+      - name: Commit reviewable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Expand Mangrok to granular global ingredient knowledge" || exit 0
+          git push origin HEAD:agent/granular-ingredient-v2
