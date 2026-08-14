@@ -1,0 +1,90 @@
+ject({
++        aliases: proposal.aliases || [], category: proposal.category || "Personal ingredients", cuisines: proposal.cuisines || [],
++        regions: proposal.regions || [], parts: proposal.parts || [], processes: proposal.processes || [], forms: proposal.forms || [],
++        allergens: proposal.allergens || [], dietary: proposal.dietary || [], notes: proposal.notes || ""
++      }),
++      evidence: String(proposal.evidence || "").slice(0, 4000),
++      status: "pending"
++    };
++    const { data, error } = await this.client.from("ingredient_submissions").insert(row).select().single();
++    if (error) throw error;
++    return data;
++  }
++
++  async listIngredientSubmissions() {
++    if (!this.client || !this.user) return [];
++    const { data, error } = await this.client.from("ingredient_submissions").select("*").eq("owner_id", this.user.id).order("created_at", { ascending: false });
++    if (error) throw error;
++    return data || [];
++  }
++
++  async withdrawIngredientSubmission(id) {
++    if (!this.client || !this.user) return null;
++    const { data, error } = await this.client.from("ingredient_submissions").update({ status: "withdrawn" }).eq("id", id).in("status", ["pending", "needs_information"]).select().single();
++    if (error) throw error;
++    return data;
++  }
++
++  async listAgentMemories() {
++    if (!this.client || !this.user) return [];
++    const { data, error } = await this.client.from("agent_memories").select("*").eq("owner_id", this.user.id).eq("status", "active").order("pinned", { ascending: false }).order("updated_at", { ascending: false });
++    if (error) throw error;
++    return data || [];
++  }
++
++  async saveAgentMemory(memory) {
++    if (!this.client || !this.user) return null;
++    const content = String(memory?.text || memory?.content || "").trim().slice(0, 420);
++    if (!content) throw new Error("Memory content is required.");
++    const row = {
++      owner_id: this.user.id,
++      scope: String(memory.scope || "preference").slice(0, 40),
++      content,
++      source: String(memory.source || "user-confirmed").slice(0, 80),
++      confidence: Math.max(0, Math.min(1, Number(memory.confidence ?? 1))),
++      pinned: Boolean(memory.pinned),
++      status: "active",
++      metadata: safeJsonObject(memory.metadata || {})
++    };
++    const { data, error } = await this.client.from("agent_memories").upsert(row, { onConflict: "owner_id,scope,content" }).select().single();
++    if (error) throw error;
++    return data;
++  }
++
++  async deleteAgentMemory(id) {
++    if (!this.client || !this.user) return;
++    const { error } = await this.client.from("agent_memories").delete().eq("id", id);
++    if (error) throw error;
++  }
++
+   async listRecipes() {
+     const { data, error } = await this.client.from("recipes").select("*").order("updated_at", { ascending: false });
+     if (error) throw error; return (data || []).map(fromRow);
+@@ -229,6 +339,16 @@ export class CloudVault {
+   }
+ }
+ 
++function normalizeLookup(value) {
++  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
++}
++function safeJsonObject(value) {
++  try {
++    const text = JSON.stringify(value ?? {});
++    return JSON.parse(text.slice(0, 24000));
++  } catch { return {}; }
++}
++
+ function safeFunctionName(value) {
+   const name = String(value || "alchemy-ai").trim();
+   if (!/^[a-z0-9][a-z0-9-]{0,62}$/i.test(name)) throw new Error("The configured Alchemy function name is invalid.");
+diff --git a/src/culinary-engine.js b/src/culinary-engine.js
+index 70ed642..16f14c8 100644
+--- a/src/culinary-engine.js
++++ b/src/culinary-engine.js
+@@ -32,7 +32,7 @@ export function profileIngredient(value){const name=String(value||"").trim(),s=n
+   add(p,s,/sugar|honey|maple|fruit|apple|pear|mango|banana|carrot|corn|pumpkin/,{sweet:.62});add(p,s,/salt|soy|fish sauce|parmesan|feta|olive|capers|stock/,{salty:.7,umami:.25});add(p,s,/lemon|lime|vinegar|tomato|yogurt|tamarind/,{acidic:.66,moisture:.2});add(p,s,/kale|broccoli|coffee|cocoa|radicchio/,{bitter:.48});add(p,s,/mushroom|tomato|soy|parmesan|stock|beef|lamb|pork|chicken|fish|shrimp|miso/,{umami:.72});add(p,s,/chili|hot sauce|pepper|paprika|ginger|mustard|harissa|cayenne/,{heat:.72});add(p,s,/butter|ghee|cream|cheese|oil|coconut milk|avocado|tahini|peanut|almond|walnut/,{richness:.78});add(p,s,/rice|pasta|noodle|flour|bread|potato|cornstarch|oat|barley|quinoa|couscous/,{starch:.9,moisture:-.15});add(p,s,/chicken|turkey|pork|beef|lamb|fish|shrimp|crab|lobster|mussel|egg/,{protein:.9,rawRisk:.82,umami:.25});add(p,s,/tofu|lentil|chickpea|bean|tempeh/,{protein:.58,umami:.18,starch:.2});add(p,s,/basil|coriander|parsley|mint|rosemary|thyme|oregano|sage|dill|saffron|vanilla|garlic|onion/,{aromatic:.9,delicate:.25});
+   for(const k of Object.keys(p))if(typeof p[k]==="number")p[k]=clamp(p[k],0,1);return p}
+ 
+-export function buildAlchemyPrompt(input,result){return[{role:"system",content:"You are Mangrok Alchemy, a cautious culinary development assistant. Return one JSON object only. Do not claim a guaranteed physical simulation. Preserve food-safety uncertainty. Keys: title, summary, insights, risks, suggestions, stages, evolutions, confidenceAdjustment."},{role:"user",content:JSON.stringify({input,deterministicAssessment:result})}]}
++export function buildAlchemyPrompt(input,result,agentContext=null){return[{role:"system",content:"You are Mangrok Alchemy, a cautious culinary development agent. Use only the supplied deterministic assessment, selected skills, bounded tool results, and opt-in memory. Return one JSON object only. Do not claim a guaranteed physical simulation, invent catalog provenance, or treat unmoderated community submissions as facts. Preserve food-safety and allergen uncertainty. Keys: title, summary, insights, risks, suggestions, stages, evolutions, confidenceAdjustment."},{role:"user",content:JSON.stringify({input,deterministicAssessment:result,agentContext})}]}
+ export function mergeAI
