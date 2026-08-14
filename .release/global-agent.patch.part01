@@ -1,0 +1,270 @@
+ory" aria-label="Filter Alchemy library"></select></div>
++        <div class="alchemy-search"><input id="alchemy-search" type="search" placeholder="Search canonical names, regional aliases, forms, or cuisine"><select id="alchemy-category" aria-label="Filter Alchemy library"></select><select id="alchemy-cuisine" aria-label="Filter ingredients by cuisine"></select></div>
++        <p id="alchemy-library-summary" class="alchemy-library-summary" aria-live="polite"></p>
+         <div id="alchemy-cards" class="alchemy-cards"></div>
+         <div class="alchemy-custom"><input id="alchemy-custom" maxlength="80" placeholder="Custom family element"><button class="mini-button" id="alchemy-add" type="button">Add item</button></div>
+       </article>
+@@ -115,6 +124,7 @@ function addView() {
+           <label>Minutes<input id="alchemy-time" type="number" min="1" max="360" value="18"></label>
+           <label>Servings<input id="alchemy-servings" type="number" min="1" max="24" value="2"></label>
+           <label class="wide">Direction<select id="alchemy-goal">${GOALS.map(value => `<option value="${value.id}">${value.label}</option>`).join("")}</select></label>
++          <label class="wide">Discovery question or constraints<textarea id="alchemy-question" rows="3" maxlength="1200" placeholder="Example: keep it vegetarian, use Ethiopian flavors, avoid peanuts, and suggest a substitute for berbere if unavailable"></textarea></label>
+         </div>
+         <section class="alchemy-provider">
+           <div class="alchemy-provider-heading"><div><p class="eyebrow">Reasoning mode</p><p id="alchemy-entitlement-note"></p></div><button class="mini-button" id="alchemy-refresh-access" type="button">Refresh access</button></div>
+@@ -163,6 +173,7 @@ function bind(root) {
+     if (!button) return;
+     state.mode = button.dataset.mode;
+     state.category = "All";
++    state.cuisine = "All cuisines";
+     state.query = "";
+     root.querySelector("#alchemy-search").value = "";
+     renderLibrary();
+@@ -170,6 +181,8 @@ function bind(root) {
+   });
+   root.querySelector("#alchemy-search").addEventListener("input", event => { state.query = event.target.value; renderLibrary(); });
+   root.querySelector("#alchemy-category").addEventListener("change", event => { state.category = event.target.value; renderLibrary(); saveDraft(); });
++  root.querySelector("#alchemy-cuisine").addEventListener("change", event => { state.cuisine = event.target.value; renderLibrary(); saveDraft(); });
++  root.querySelector("#alchemy-question").addEventListener("input", event => { state.question = event.target.value; preview(); saveDraft(); });
+   root.querySelector("#alchemy-cards").addEventListener("click", event => { const button = event.target.closest("[data-item]"); if (button) toggle(button.dataset.item); });
+   root.querySelector("#alchemy-selected-ingredients").addEventListener("click", removeSelection);
+   root.querySelector("#alchemy-selected-equipment").addEventListener("click", removeSelection);
+@@ -230,6 +243,7 @@ function renderAll() {
+   root.querySelector("#alchemy-time").value = state.time;
+   root.querySelector("#alchemy-servings").value = state.servings;
+   root.querySelector("#alchemy-goal").value = state.goal;
++  root.querySelector("#alchemy-question").value = state.question;
+   renderLibrary();
+   renderSelected();
+   renderProviders();
+@@ -242,19 +256,40 @@ function renderAll() {
+ function renderLibrary() {
+   const root = document.querySelector("#view-alchemy");
+   if (!root) return;
+-  const source = state.mode === "equipment" ? EQUIPMENT_LIBRARY : INGREDIENT_LIBRARY;
+   const selected = state.mode === "equipment" ? state.equipment : state.ingredients;
+-  const query = state.query.trim().toLowerCase();
+-  const categories = kitchenCategories(state.mode);
++  const categories = kitchenCategories(state.mode, state.personalIngredients);
++  if (!categories.includes(state.category)) state.category = "All";
+   root.querySelector("#alchemy-category").innerHTML = categories.map(value => `<option${value === state.category ? " selected" : ""}>${escapeHtml(value)}</option>`).join("");
+   root.querySelectorAll("[data-mode]").forEach(button => button.classList.toggle("active", button.dataset.mode === state.mode));
++  const cuisine = root.querySelector("#alchemy-cuisine");
++  cuisine.hidden = state.mode !== "ingredients";
++  if (state.mode === "ingredients") {
++    const options = kitchenCuisines(state.personalIngredients);
++    if (!options.includes(state.cuisine)) state.cuisine = "All cuisines";
++    cuisine.innerHTML = options.map(value => `<option${value === state.cuisine ? " selected" : ""}>${escapeHtml(value)}</option>`).join("");
++  }
++  const result = searchKitchenItems({
++    mode: state.mode,
++    query: state.query,
++    category: state.category,
++    cuisine: state.mode === "ingredients" ? state.cuisine : "All cuisines",
++    limit: 48,
++    additionalEntries: state.personalIngredients
++  });
+   const image = state.mode === "equipment" ? IMG.equipment : IMG.ingredients;
+-  root.querySelector("#alchemy-cards").innerHTML = source
+-    .filter(item => (state.category === "All" || item.category === state.category) && (!query || `${item.name} ${item.category}`.toLowerCase().includes(query)))
+-    .slice(0, 42)
+-    .map((item, index) => `<button type="button" data-item="${escapeAttribute(item.name)}" class="alchemy-card ${selected.has(item.name) ? "selected" : ""}"><img src="${image}" alt="" style="object-position:${(index % 7) * 14}% ${(Math.floor(index / 7) % 5) * 25}%"><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.category)}</small></span><em>${selected.has(item.name) ? "Selected" : "Add"}</em></button>`)
+-    .join("");
++  root.querySelector("#alchemy-cards").innerHTML = result.items
++    .map((item, index) => {
++      const stable = Number(item.visualIndex ?? index);
++      const detail = state.mode === "ingredients"
++        ? [item.category, item.aliases?.[0] ? `also ${item.aliases[0]}` : "", item.cuisines?.[0] || ""].filter(Boolean).join(" · ")
++        : item.category;
++      return `<button type="button" data-item="${escapeAttribute(item.name)}" class="alchemy-card ${selected.has(item.name) ? "selected" : ""}"><img src="${image}" alt="" style="object-position:${(stable % 7) * 14}% ${(Math.floor(stable / 7) % 5) * 25}%"><span><b>${escapeHtml(item.name)}</b><small>${escapeHtml(detail)}</small></span><em>${selected.has(item.name) ? "Selected" : "Add"}</em></button>`;
++    }).join("");
+   root.querySelector("#alchemy-count").textContent = `${selected.size} selected`;
++  const summary = state.mode === "ingredients" ? catalogSummary(state.personalIngredients) : null;
++  root.querySelector("#alchemy-library-summary").textContent = state.mode === "ingredients"
++    ? `${result.total.toLocaleString()} matches · ${summary.published.toLocaleString()} published ingredients · ${summary.aliases.toLocaleString()} aliases · ${summary.cuisines} cuisine traditions${result.truncated ? ` · showing ${result.items.length}` : ""}`
++    : `${result.total} equipment matches`;
+ }
+ 
+ function renderSelected() {
+@@ -349,6 +384,7 @@ async function run() {
+       input: base.input,
+       simulation: base,
+       provider: state.provider,
++      question: state.question,
+       config: configuration(),
+       requestId,
+       signal: state.runController.signal,
+@@ -399,6 +435,7 @@ function renderResult() {
+     </div>
+     <section class="panel alchemy-timeline"><p class="eyebrow">Cooking timeline</p><h3>Predicted evolution</h3><div>${value.stages.map((stage, index) => `<article><small>Stage ${index + 1}</small><h4>${escapeHtml(stage.name)}</h4><b>${stage.minutes} min</b><p>${escapeHtml(stage.cue)}</p></article>`).join("")}</div></section>
+     <section class="alchemy-evolutions"><img src="${IMG.evolution}" alt="A generated recipe evolution scene"><div>${value.evolutions.map(item => `<article class="panel"><h3>${escapeHtml(item.name)}</h3><p>${escapeHtml(item.change)}</p><small>${escapeHtml(item.reason)}</small></article>`).join("")}</div></section>
++    ${renderAgentTrace(value.agentTrace)}
+     <p class="alchemy-disclaimer">${escapeHtml(value.disclaimer)}</p>`;
+   const view = document.querySelector("#view-alchemy");
+   if (view?.scrollTo) view.scrollTo({ top: 0, behavior: "smooth" });
+@@ -476,11 +513,28 @@ function removeSelection(event) {
+   renderLibrary(); renderSelected(); preview(); saveDraft();
+ }
+ 
+-function addCustom() {
++async function addCustom() {
+   const input = document.querySelector("#alchemy-custom");
+   const value = input.value.trim().replaceAll(",", " ").slice(0, 80);
+   if (!value) return;
+-  (state.mode === "equipment" ? state.equipment : state.ingredients).add(value);
++  if (state.mode === "equipment") {
++    state.equipment.add(value);
++  } else {
++    try {
++      const saved = await savePersonalIngredient({
++        name: value,
++        category: state.category !== "All" ? state.category : "Personal ingredients",
++        cuisines: state.cuisine !== "All cuisines" ? [state.cuisine] : [],
++        notes: "Added from Mangrok Alchemy."
++      }, { confirmed: true });
++      const canonical = saved.ingredient?.name || value;
++      state.ingredients.add(canonical);
++      await refreshPersonalIngredients();
++    } catch (error) {
++      showProgressMessage(error.message, true);
++      return;
++    }
++  }
+   input.value = "";
+   renderLibrary(); renderSelected(); preview(); saveDraft();
+ }
+@@ -493,6 +547,8 @@ function reset() {
+   state.time = 18;
+   state.servings = 2;
+   state.goal = "balanced";
++  state.cuisine = "All cuisines";
++  state.question = "";
+   state.result = null;
+   state.experimentId = null;
+   document.querySelector("#alchemy-results").hidden = true;
+@@ -721,6 +777,8 @@ function saveDraft() {
+       goal: state.goal,
+       provider: state.provider,
+       mode: state.mode,
++      cuisine: state.cuisine,
++      question: state.question,
+       mobileStep: state.mobileStep,
+       savedAt: new Date().toISOString()
+     }));
+@@ -740,6 +798,8 @@ function restoreDraft() {
+     state.servings = clampNumber(value.servings, 1, 24, state.servings);
+     if (["rules", "webllm", "ollama", "gateway"].includes(value.provider)) state.provider = value.provider;
+     if (["ingredients", "equipment"].includes(value.mode)) state.mode = value.mode;
++    if (typeof value.cuisine === "string") state.cuisine = value.cuisine.slice(0, 80);
++    if (typeof value.question === "string") state.question = value.question.slice(0, 1200);
+     if (["elements", "formula", "insights"].includes(value.mobileStep)) state.mobileStep = value.mobileStep;
+   } catch {}
+ }
+@@ -750,7 +810,7 @@ function clampNumber(value, minimum, maximum, fallback) {
+ }
+ 
+ function currentInput() {
+-  return { ingredients: [...state.ingredients], equipment: [...state.equipment], technique: state.technique, heat: state.heat, timeMinutes: state.time, servings: state.servings, goal: state.goal };
++  return { ingredients: [...state.ingredients], equipment: [...state.equipment], technique: state.technique, heat: state.heat, timeMinutes: state.time, servings: state.servings, goal: state.goal, notes: state.question };
+ }
+ 
+ function configuration() {
+@@ -783,6 +843,18 @@ function requestBridge(name, payload = {}, timeoutMs = 2_000) {
+   });
+ }
+ 
++async function refreshPersonalIngredients() {
++  try { state.personalIngredients = await listPersonalIngredients(); } catch { state.personalIngredients = []; }
++  if (document.querySelector("#view-alchemy")) renderLibrary();
++}
++
++function renderAgentTrace(trace) {
++  if (!trace) return "";
++  const skills = (trace.skills || []).map(value => `<span>${escapeHtml(value)}</span>`).join("");
++  const tools = (trace.tools || []).map(value => `<li><b>${escapeHtml(value.name.replaceAll("_", " "))}</b><span>${escapeHtml(value.status)}${Number.isFinite(Number(value.durationMs)) ? ` · ${Math.round(Number(value.durationMs))} ms` : ""}</span></li>`).join("");
++  return `<section class="panel alchemy-agent-trace"><div><p class="eyebrow">Agent routing</p><h3>How Mangrok grounded this result</h3><p>Intent: ${escapeHtml(trace.intent || "culinary analysis")} · Memory ${trace.memoryEnabled ? "enabled" : "off"} · ${Number(trace.personalIngredientCount || 0)} personal ingredient${Number(trace.personalIngredientCount || 0) === 1 ? "" : "s"}</p></div><div class="alchemy-agent-skills">${skills || "<span>Technique guard</span>"}</div>${tools ? `<ol>${tools}</ol>` : ""}</section>`;
++}
++
+ function leadingFlavor(flavor) { return FLAVORS.toSorted((left, right) => flavor[right] - flavor[left])[0]; }
+ function randomId() {
+   return typeof globalThis.crypto?.randomUUID === "function"
+diff --git a/src/app.js b/src/app.js
+index 49d8948..db195ae 100644
+--- a/src/app.js
++++ b/src/app.js
+@@ -72,6 +72,15 @@ function bindEvents() {
+   window.addEventListener("mangrok:invoke-alchemy-gateway", event => respondToBridge(event, invokeAlchemyGateway(event.detail)));
+   window.addEventListener("mangrok:save-alchemy-experiment", event => respondToBridge(event, saveAlchemyExperiment(event.detail?.experiment)));
+   window.addEventListener("mangrok:list-alchemy-experiments", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listAlchemyExperiments(event.detail?.limit) : []));
++  window.addEventListener("mangrok:list-published-ingredients", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listPublishedIngredients(event.detail || {}) : []));
++  window.addEventListener("mangrok:list-cloud-personal-ingredients", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listPersonalIngredients() : []));
++  window.addEventListener("mangrok:save-cloud-personal-ingredient", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.savePersonalIngredient(event.detail?.ingredient) : null));
++  window.addEventListener("mangrok:submit-ingredient-proposal", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.submitIngredientProposal(event.detail?.proposal) : null));
++  window.addEventListener("mangrok:list-cloud-ingredient-proposals", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listIngredientSubmissions() : []));
++  window.addEventListener("mangrok:withdraw-cloud-ingredient-proposal", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.withdrawIngredientSubmission(event.detail?.id) : null));
++  window.addEventListener("mangrok:list-cloud-agent-memories", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.listAgentMemories() : []));
++  window.addEventListener("mangrok:save-cloud-agent-memory", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.saveAgentMemory(event.detail?.memory) : null));
++  window.addEventListener("mangrok:delete-cloud-agent-memory", event => respondToBridge(event, state.mode === "cloud" ? state.cloud.deleteAgentMemory(event.detail?.id) : null));
+   window.addEventListener("mangrok:request-print-draft", event => respondToBridge(event, printDraftOptions()));
+   const followHistory = () => { const view = location.hash.slice(1); if (viewMeta[view]) switchView(view, false); };
+   window.addEventListener("hashchange", followHistory);
+diff --git a/src/cloud.js b/src/cloud.js
+index 04c9724..ec59a34 100644
+--- a/src/cloud.js
++++ b/src/cloud.js
+@@ -119,6 +119,116 @@ export class CloudVault {
+     return data;
+   }
+ 
++  async listPublishedIngredients({ limit = 500, offset = 0 } = {}) {
++    if (!this.client) return [];
++    const safeLimit = Math.min(1000, Math.max(1, Number(limit) || 500));
++    const safeOffset = Math.max(0, Number(offset) || 0);
++    const { data, error } = await this.client
++      .from("ingredient_catalog")
++      .select("*,ingredient_aliases(alias,language_code,region),ingredient_cuisine_links(cuisine,relationship,confidence)")
++      .eq("status", "published")
++      .order("canonical_name")
++      .range(safeOffset, safeOffset + safeLimit - 1);
++    if (error) throw error;
++    return data || [];
++  }
++
++  async listPersonalIngredients() {
++    if (!this.client || !this.user) return [];
++    const { data, error } = await this.client.from("personal_ingredients").select("*").eq("owner_id", this.user.id).order("updated_at", { ascending: false });
++    if (error) throw error;
++    return data || [];
++  }
++
++  async savePersonalIngredient(ingredient) {
++    if (!this.client || !this.user) return null;
++    const name = String(ingredient?.name || ingredient?.canonicalName || "").trim().slice(0, 100);
++    if (!name) throw new Error("Ingredient name is required.");
++    const row = {
++      owner_id: this.user.id,
++      canonical_name: name,
++      normalized_name: normalizeLookup(name),
++      metadata: safeJsonObject({
++        aliases: ingredient.aliases || [], category: ingredient.category || "Personal ingredients", cuisines: ingredient.cuisines || [],
++        regions: ingredient.regions || [], parts: ingredient.parts || [], processes: ingredient.processes || [], forms: ingredient.forms || [],
++        allergens: ingredient.allergens || [], dietary: ingredient.dietary || [], notes: ingredient.notes || ""
++      }),
++      status: "personal"
++    };
++    const { data, error } = await this.client.from("personal_ingredients").upsert(row, { onConflict: "owner_id,normalized_name" }).select().single();
++    if (error) throw error;
++    return data;
++  }
++
++  async submitIngredientProposal(proposal) {
++    if (!this.client || !this.user) throw new Error("Sign in before submitting an ingredient to the shared catalog.");
++    const name = String(proposal?.canonicalName || proposal?.name || "").trim().slice(0, 100);
++    if (!name) throw new Error("Ingredient name is required.");
++    const personal = await this.savePersonalIngredient({ ...proposal, name });
++    const row = {
++      owner_id: this.user.id,
++      personal_ingredient_id: personal?.id || null,
++      canonical_name: name,
++      normalized_name: normalizeLookup(name),
++      metadata: safeJsonOb

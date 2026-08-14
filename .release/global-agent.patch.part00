@@ -1,0 +1,240 @@
+diff --git a/README.md b/README.md
+index ae56610..ad34d84 100644
+--- a/README.md
++++ b/README.md
+@@ -16,6 +16,9 @@ Mangrok is a local-first AI culinary discovery lab, private recipe vault, and il
+ - Recipe origin, story, creator, place, year, and current custodian.
+ - Explainable Alchemy Lab with ingredient, equipment, heat, timing, technique, risk, flavor, science, and recipe-evolution analysis.
+ - Optional WebLLM and self-hosted Ollama/OpenAI-compatible refinement without committing model weights.
++- Versioned global ingredient knowledge catalog with 4,301 canonical ingredients, 5,542 aliases, 80 cuisine/tradition filters, provenance, plant-part, process, form, allergen, and dietary facets.
++- Personal ingredient memory and a moderated community-submission workflow; users cannot publish their own proposals as shared facts.
++- Hermes-inspired culinary-agent runtime with explicit intent routing, on-demand skills, bounded tools, session traces, and opt-in memory that rejects credentials, sealed notes, and complete private recipes.
+ - Server-ready Alchemy entitlements, idempotent usage events, failed-call refunds, and private experiment history.
+ - 6 × 9 inch print studio with cover, dedication, contents, five themes, generated culinary art, irreversible-secret confirmation, and downloadable preflight manifests.
+ - Settings-based production readiness checks for browser capabilities, local AI, cloud activation, entitlements, storage, offline control, and printing.
+@@ -28,7 +31,7 @@ Mangrok is a local-first AI culinary discovery lab, private recipe vault, and il
+ 
+ The repository is application-complete, but three external activations cannot be fabricated in source code:
+ 
+-1. **Cloud accounts and Alchemy:** create a Supabase project, apply migrations `001`, `002`, and `003`, deploy the updated Alchemy function, configure email authentication, and place only the public URL and anonymous key in `runtime-config.js`.
++1. **Cloud accounts and Alchemy:** create a Supabase project, apply migrations `001`, `002`, `003`, and `004`, deploy the updated Alchemy function, configure email authentication, and place only the public URL and anonymous key in `runtime-config.js`.
+ 2. **Physical books:** configure a real print provider, private PDF-proof pipeline, commercial terms, tax/shipping rules, and provider secrets in Edge Function environment variables.
+ 3. **Legacy release:** establish trained human reviewers, identity-verification procedures, legal review, and an auditable decision process. The supplied function only flags plans for review.
+ 
+@@ -55,7 +58,7 @@ The deployable site is written to `dist/`. GitHub Pages builds and publishes tha
+ 
+ 1. Create a Supabase project.
+ 2. Apply `supabase/migrations/001_platform.sql` once to a clean project.
+-3. Apply `supabase/migrations/002_alchemy.sql` and `003_alchemy_production.sql`.
++3. Apply `supabase/migrations/002_alchemy.sql`, `003_alchemy_production.sql`, and `004_global_ingredient_agent_memory.sql`.
+ 4. Deploy `print-order`, `legacy-review`, and `alchemy-ai` Edge Functions.
+ 5. Configure function secrets from the supplied `.env.example` files. The Alchemy function requires a server-only service-role key for refund/completion bookkeeping; never expose it to the browser.
+ 6. Copy the project URL and **anonymous** key into `runtime-config.js`.
+diff --git a/assets/css/alchemy.css b/assets/css/alchemy.css
+index 1b15982..223dbdc 100644
+--- a/assets/css/alchemy.css
++++ b/assets/css/alchemy.css
+@@ -509,3 +509,43 @@ body.food-night .mobile-more-sheet{background:#27202a}
+   .alchemy-mobile-actionbar>span{font-size:7px}
+   .mobile-more-sheet{padding-inline:14px}
+ }
++
++/* Global ingredient knowledge, agent routing, and opt-in memory. */
++.alchemy-library-summary,.kitchen-library-summary{margin:8px 0 12px;color:var(--muted);font-size:10px;line-height:1.45}
++.alchemy-agent-trace{display:grid;gap:14px}
++.alchemy-agent-trace>div:first-child p:last-child{margin:6px 0 0;color:var(--muted)}
++.alchemy-agent-skills{display:flex;flex-wrap:wrap;gap:7px}
++.alchemy-agent-skills span{padding:6px 9px;color:var(--food-berry);background:rgba(140,83,123,.08);border:1px solid rgba(140,83,123,.2);border-radius:999px;font-size:9px;font-weight:800}
++.alchemy-agent-trace ol{display:grid;gap:7px;margin:0;padding:0;list-style:none}
++.alchemy-agent-trace li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;background:rgba(255,255,255,.42);border:1px solid var(--line);border-radius:12px}
++.alchemy-agent-trace li b{text-transform:capitalize}
++.alchemy-agent-trace li span{color:var(--muted);font-size:9px}
++.agent-memory-panel,.ingredient-knowledge-panel{grid-column:span 2;display:grid;gap:14px}
++.agent-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
++.agent-panel-heading h3{margin:3px 0 0}
++.agent-panel-heading .switch-row.compact{width:min(380px,100%);margin:0;padding:0;border:0}
++.agent-memory-form{display:grid;grid-template-columns:minmax(170px,.7fr) minmax(260px,2fr);gap:12px;align-items:end}
++.agent-memory-form .wide{grid-column:2}
++.agent-memory-form .check-row{grid-column:1}
++.agent-memory-form>button{grid-column:2;justify-self:start}
++.agent-memory-list,.ingredient-proposal-list{display:grid;gap:8px}
++.agent-memory-list article,.ingredient-proposal-list article{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:12px;background:rgba(255,255,255,.42);border:1px solid var(--line);border-radius:14px}
++.agent-memory-list article>div,.ingredient-proposal-list article>div{min-width:0}
++.agent-memory-list article span,.ingredient-proposal-list article p{color:var(--food-berry);font-size:9px;font-weight:850;text-transform:uppercase;letter-spacing:.08em}
++.agent-memory-list article p,.ingredient-proposal-list article p{margin:5px 0;overflow-wrap:anywhere}
++.agent-memory-list article small,.ingredient-proposal-list article small{color:var(--muted)}
++.ingredient-catalog-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
++.ingredient-catalog-stats div{min-width:0;padding:10px;background:rgba(255,255,255,.42);border:1px solid var(--line);border-radius:13px}
++.ingredient-catalog-stats small{display:block;color:var(--muted);font-size:8px;text-transform:uppercase;letter-spacing:.08em}
++.ingredient-catalog-stats b{display:block;margin-top:4px;overflow-wrap:anywhere;font-size:13px}
++.kitchen-community-check[hidden]{display:none!important}
++body.food-night .alchemy-agent-trace li,body.food-night .agent-memory-list article,body.food-night .ingredient-proposal-list article,body.food-night .ingredient-catalog-stats div{background:rgba(255,255,255,.04)}
++
++@media(max-width:940px){
++  .agent-memory-panel,.ingredient-knowledge-panel{grid-column:auto}
++  .agent-panel-heading{display:grid}
++  .agent-panel-heading .switch-row.compact{width:100%}
++  .agent-memory-form{grid-template-columns:1fr}
++  .agent-memory-form .wide,.agent-memory-form .check-row,.agent-memory-form>button{grid-column:auto}
++  .ingredient-catalog-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
++}
+diff --git a/docs/PRODUCT-STATUS.md b/docs/PRODUCT-STATUS.md
+index 09c85aa..badfb5f 100644
+--- a/docs/PRODUCT-STATUS.md
++++ b/docs/PRODUCT-STATUS.md
+@@ -2,7 +2,7 @@
+ 
+ ## Code-complete
+ 
+-The repository contains the end-to-end application, local-first storage, optional cloud adapter, database schema and policies, private media model, sharing and revocation, version history, print studio, fulfillment adapter, legacy review adapter, tests, legal drafts, and deployment automation.
++The repository contains the end-to-end application, local-first storage, optional cloud adapter, database schema and policies, private media model, sharing and revocation, version history, a 4,301-entry ingredient catalog, personal and moderated ingredient contributions, a Hermes-inspired bounded agent-memory layer, print studio, fulfillment adapter, legacy review adapter, tests, legal drafts, and deployment automation.
+ 
+ ## Live without external credentials
+ 
+@@ -12,7 +12,8 @@ The public GitHub Pages build runs as a functional device-only PWA. Users can pr
+ 
+ | Capability | Required external action |
+ |---|---|
+-| Authenticated sync | Create and configure Supabase; apply SQL; run two-user RLS tests |
++| Authenticated sync | Create and configure Supabase; apply SQL migrations 001–004; seed the published ingredient catalog; run two-user RLS tests |
++| Shared ingredient catalog and agent memory | Deploy catalog seeding/moderation operations and test owner isolation, proposal review, and memory deletion |
+ | Email sign-in | Configure sender, redirect URLs, abuse/rate controls, and recovery policy |
+ | Physical fulfillment | Select provider; configure private proofs, pricing, taxes, shipping, refunds, and credentials |
+ | Legacy release | Establish identity verification, legal policy, reviewer roles, audit logging, and incident procedures |
+diff --git a/package.json b/package.json
+index 3032c53..f76a78f 100644
+--- a/package.json
++++ b/package.json
+@@ -1 +1 @@
+-{"name":"mangrok-recipe-vault","version":"3.3.0-alpha.4","private":true,"type":"module","description":"A local-first recipe vault with production-ready AI diagnostics, server-metered Alchemy, and illustrated print preflight.","scripts":{"test":"node --test tests/*.test.mjs","validate":"node scripts/validate.mjs","build":"node scripts/build.mjs","check":"npm run test && npm run validate && npm run build"},"engines":{"node":">=20"}}
++{"name":"mangrok-recipe-vault","version":"3.4.0-alpha.5","private":true,"type":"module","description":"A local-first recipe vault with a 4,000+ ingredient knowledge graph, bounded culinary agent memory, AI routing, and illustrated print studio.","scripts":{"test":"node --test tests/*.test.mjs","validate":"node scripts/validate.mjs","build":"node scripts/build.mjs","check":"npm run test && npm run validate && npm run build"},"engines":{"node":">=20"}}
+diff --git a/runtime-config.js b/runtime-config.js
+index 481460f..a643fbc 100644
+--- a/runtime-config.js
++++ b/runtime-config.js
+@@ -1,6 +1,6 @@
+ /** Public runtime configuration. Never place service-role, payment, or private model credentials here. */
+ window.MANGROK_CONFIG = Object.freeze({
+-  appVersion: "3.3.0-alpha.4",
++  appVersion: "3.4.0-alpha.5",
+   supabaseUrl: "",
+   supabaseAnonKey: "",
+   printFunctionName: "print-order",
+@@ -23,3 +23,5 @@ import("./src/print-decor.js").catch(error => console.warn("Print decoration enh
+ import("./src/readiness.js").catch(error => console.warn("Readiness enhancement", error));
+ 
+ import("./src/mobile-shell.js").catch(error => console.warn("Mobile shell enhancement", error));
++
++import("./src/agent-memory-ui.js").catch(error => console.warn("Agent memory and catalog enhancement", error));
+diff --git a/scripts/validate.mjs b/scripts/validate.mjs
+index 4c74dbb..03b8e95 100644
+--- a/scripts/validate.mjs
++++ b/scripts/validate.mjs
+@@ -8,11 +8,14 @@ const required = [
+   "index.html", "styles.css", "runtime-config.js", "manifest.webmanifest", "sw.js",
+   "src/app.js", "src/cloud.js", "src/print.js", "src/kitchen-library.js", "src/kitchen-ui.js",
+   "src/culinary-engine.js", "src/local-ai.js", "src/entitlements.js", "src/readiness.js", "src/mobile-shell.js", "src/generated-images.js",
++  "src/ingredient-catalog-data.js", "src/ingredient-catalog.js", "src/local-knowledge-store.js", "src/ingredient-community.js",
++  "src/agent-memory.js", "src/agent-skills.js", "src/agent-router.js", "src/agent-tools.js", "src/agent-runtime.js", "src/agent-memory-ui.js",
+   "assets/generated/hero.svg", "assets/generated/ingredients.svg", "assets/generated/equipment.svg",
+   "assets/generated/insights.svg", "assets/generated/evolution.svg",
+   "src/alchemy-ui.js",
+   "src/print-decor.js", "assets/css/alchemy.css",
+   "supabase/migrations/001_platform.sql", "supabase/migrations/002_alchemy.sql", "supabase/migrations/003_alchemy_production.sql",
++  "supabase/migrations/004_global_ingredient_agent_memory.sql",
+   "supabase/functions/alchemy-ai/index.ts", "SECURITY.md"
+ ];
+ 
+@@ -61,17 +64,44 @@ for (const symbol of ["⌂", "⌕", "▤", "◇", "◎", "♢", "⚙", "✦", "
+ 
+ const runtime = await readFile(path.join(root, "runtime-config.js"), "utf8");
+ const serviceWorker = await readFile(path.join(root, "sw.js"), "utf8");
+-for (const phrase of ["appVersion", "alchemyFunctionName", "src/readiness.js", "src/entitlements.js", "src/mobile-shell.js"]) {
++for (const phrase of [
++  "appVersion", "alchemyFunctionName", "src/readiness.js", "src/entitlements.js", "src/mobile-shell.js",
++  "src/ingredient-catalog-data.js", "src/ingredient-catalog.js", "src/ingredient-community.js",
++  "src/agent-memory.js", "src/agent-runtime.js", "src/agent-memory-ui.js"
++]) {
+   if (!runtime.includes(phrase) && !serviceWorker.includes(phrase)) throw new Error(`Missing production-readiness contract: ${phrase}`);
+ }
+-if (!/mangrok-v7-mobile-app-shell/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the mobile app-shell release.");
++if (!/mangrok-v8-global-ingredient-agent/.test(serviceWorker)) throw new Error("PWA cache was not advanced for the global ingredient and agent-memory release.");
++
++const catalogData = await readFile(path.join(root, "src/ingredient-catalog-data.js"), "utf8");
++const catalogStats = JSON.parse(await readFile(path.join(root, "docs/ingredient-catalog-stats.json"), "utf8"));
++if (!/2026\.08\.13-global-granular-v2/.test(catalogData)) throw new Error("Global granular catalog version is missing.");
++if (Number(catalogStats.count) < 4250) throw new Error(`Ingredient catalog is unexpectedly small: ${catalogStats.count}`);
++if (Number(catalogStats.aliases) < 5000) throw new Error(`Ingredient alias coverage is unexpectedly small: ${catalogStats.aliases}`);
++if (Number(catalogStats.cuisines) < 75) throw new Error(`Cuisine coverage is unexpectedly small: ${catalogStats.cuisines}`);
++
++const agentMemory = await readFile(path.join(root, "src/agent-memory.js"), "utf8");
++for (const phrase of ["MEMORY_ENABLED_KEY", "confirmed", "session-summary", "MEMORY_LIMITS"]) {
++  if (!agentMemory.includes(phrase)) throw new Error(`Missing bounded-memory contract: ${phrase}`);
++}
++
++const migration004 = await readFile(path.join(root, "supabase/migrations/004_global_ingredient_agent_memory.sql"), "utf8");
++for (const phrase of [
++  "ingredient_catalog_versions", "ingredient_submissions", "agent_memories", "agent_tool_runs",
++  "service role required", "grant execute on function public.moderate_ingredient_submission"
++]) {
++  if (!migration004.includes(phrase)) throw new Error(`Missing global ingredient or agent-memory database contract: ${phrase}`);
++}
++if (/grant execute on function public\.moderate_ingredient_submission[^;]+authenticated/i.test(migration004)) {
++  throw new Error("Ingredient moderation must not be executable by authenticated browser users.");
++}
+ 
+ const alchemyFunction = await readFile(path.join(root, "supabase/functions/alchemy-ai/index.ts"), "utf8");
+ for (const phrase of ["p_request_id", "refund_alchemy_credit", "model_gateway_timeout", "origin_not_allowed"]) {
+   if (!alchemyFunction.includes(phrase)) throw new Error(`Missing Alchemy gateway safety contract: ${phrase}`);
+ }
+ 
+-console.log("Mangrok Alchemy static validation passed.");
++console.log(`Mangrok global ingredient and agent-memory static validation passed (${catalogStats.count} ingredients, ${catalogStats.aliases} aliases).`);
+ 
+ function assertSvgWellFormed(svg, file) {
+   const stack = [];
+diff --git a/src/alchemy-ui.js b/src/alchemy-ui.js
+index f8d7594..c588344 100644
+--- a/src/alchemy-ui.js
++++ b/src/alchemy-ui.js
+@@ -1,4 +1,6 @@
+-import { INGREDIENT_LIBRARY, EQUIPMENT_LIBRARY, kitchenCategories } from "./kitchen-library.js";
++import { INGREDIENT_LIBRARY, EQUIPMENT_LIBRARY, kitchenCategories, kitchenCuisines, searchKitchenItems } from "./kitchen-library.js";
++import { catalogSummary } from "./ingredient-catalog.js";
++import { listPersonalIngredients, savePersonalIngredient } from "./ingredient-community.js";
+ import { TECHNIQUES, HEAT_LEVELS, GOALS, FLAVORS, simulateAlchemy } from "./culinary-engine.js";
+ import { enhanceWithLocalAI, getLocalAICapabilities } from "./local-ai.js";
+ import { consumeLocalTrial, entitlementDisplay, normalizeAlchemyEntitlement, readLocalTrial } from "./entitlements.js";
+@@ -9,7 +11,10 @@ const DRAFT_KEY = "mangrok.alchemy.draft.v1";
+ const state = {
+   mode: "ingredients",
+   category: "All",
++  cuisine: "All cuisines",
+   query: "",
++  question: "",
++  personalIngredients: [],
+   ingredients: new Set(["Chicken", "Garlic", "Lemon", "Tomato", "Olive oil", "Basil"]),
+   equipment: new Set(["Cast-iron skillet", "Tongs"]),
+   technique: "sear",
+@@ -45,6 +50,7 @@ function ready(callback) {
+ 
+ async function init() {
+   restoreDraft();
++  await refreshPersonalIngredients();
+   addNav();
+   addView();
+   bindStandardNav();
+@@ -52,6 +58,8 @@ async function init() {
+   await refreshAccountState();
+   window.addEventListener("mangrok:app-ready", refreshAccountState);
+   window.addEventListener("mangrok:auth", refreshAccountState);
++  window.addEventListener("mangrok:ingredient-personal-saved", refreshPersonalIngredients);
++  window.addEventListener("mangrok:ingredient-personal-removed", refreshPersonalIngredients);
+   document.addEventListener("visibilitychange", () => {
+     if (state.busy && document.visibilityState === "visible") acquireWakeLock();
+   });
+@@ -101,7 +109,8 @@ function addView() {
+       <article class="panel alchemy-library" data-alchemy-step-panel="elements">
+         <header><div><p class="eyebrow">Elements</p><h3>Kitchen library</h3></div><b id="alchemy-count"></b></header>
+         <div class="alchemy-tabs"><button data-mode="ingredients">Ingredients</button><button data-mode="equipment">Equipment</button></div>
+-        <div class="alchemy-search"><input id="alchemy-search" type="search" placeholder="Search ingredients or equipment"><select id="alchemy-categ
