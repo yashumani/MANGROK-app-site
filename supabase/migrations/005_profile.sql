@@ -26,6 +26,12 @@ create policy profiles_self_insert on public.profiles
   for insert to authenticated
   with check(id = auth.uid() and email = public.current_email());
 
+drop policy if exists profiles_self_update on public.profiles;
+create policy profiles_self_update on public.profiles
+  for update to authenticated
+  using(id = auth.uid())
+  with check(id = auth.uid() and email = public.current_email());
+
 comment on column public.profiles.culinary_role is 'Private role the owner plays in the recipe archive.';
 comment on column public.profiles.heritage_notes is 'Private traditions and places represented by the owner archive.';
 comment on column public.profiles.preservation_note is 'Private statement of what the owner intends to preserve.';
