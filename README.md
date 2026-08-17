@@ -7,6 +7,7 @@ Mangrok is a local-first AI culinary discovery lab, private recipe vault, and il
 ## What is implemented
 
 - Responsive, installable recipe vault with search, filters, favorites, backups, offline shell, and migration from the original browser MVP.
+- Private owner profile for culinary role, represented traditions and places, preservation intent, default recipe access, and custodian credit. It works in device mode and uses self-only row-level policies in cloud mode.
 - Four access labels: Only me, Family vault, Trusted circle, and Open recipe.
 - AES-256-GCM sealed notes derived with PBKDF2-SHA-256 at 310,000 iterations. Passphrases are never persisted.
 - Recipe versions and restore flows.
@@ -28,7 +29,7 @@ Mangrok is a local-first AI culinary discovery lab, private recipe vault, and il
 
 The repository is application-complete, but three external activations cannot be fabricated in source code:
 
-1. **Cloud accounts and Alchemy:** create a Supabase project, apply migrations `001`, `002`, and `003`, deploy the updated Alchemy function, configure email authentication, and place only the public URL and anonymous key in `runtime-config.js`.
+1. **Cloud accounts and Alchemy:** create a Supabase project, apply migrations `001` through `005`, deploy the updated Alchemy function, configure email authentication, and place only the public URL and anonymous key in `runtime-config.js`.
 2. **Physical books:** configure a real print provider, private PDF-proof pipeline, commercial terms, tax/shipping rules, and provider secrets in Edge Function environment variables.
 3. **Legacy release:** establish trained human reviewers, identity-verification procedures, legal review, and an auditable decision process. The supplied function only flags plans for review.
 
@@ -55,7 +56,7 @@ The deployable site is written to `dist/`. GitHub Pages builds and publishes tha
 
 1. Create a Supabase project.
 2. Apply `supabase/migrations/001_platform.sql` once to a clean project.
-3. Apply `supabase/migrations/002_alchemy.sql` and `003_alchemy_production.sql`.
+3. Apply `supabase/migrations/002_alchemy.sql`, `003_alchemy_production.sql`, `004_global_ingredient_agent_memory.sql`, and `005_profile.sql` in order.
 4. Deploy `print-order`, `legacy-review`, and `alchemy-ai` Edge Functions.
 5. Configure function secrets from the supplied `.env.example` files. The Alchemy function requires a server-only service-role key for refund/completion bookkeeping; never expose it to the browser.
 6. Copy the project URL and **anonymous** key into `runtime-config.js`.
