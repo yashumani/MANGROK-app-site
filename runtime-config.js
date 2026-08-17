@@ -21,5 +21,5 @@ import("./src/kitchen-ui.js").catch(error => console.warn("Kitchen library enhan
 import("./src/alchemy-ui.js").catch(error => console.warn("Alchemy enhancement", error));
 import("./src/print-decor.js").catch(error => console.warn("Print decoration enhancement", error));
 import("./src/readiness.js").catch(error => console.warn("Readiness enhancement", error));
-
+import("./src/profile.js").catch(error => console.warn("Profile enhancement", error));
 import("./src/mobile-shell.js").catch(error => console.warn("Mobile shell enhancement", error));
