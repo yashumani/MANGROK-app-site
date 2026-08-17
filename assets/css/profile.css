@@ -1,0 +1,219 @@
+/* Private owner profile for the Mangrok recipe archive. */
+.profile-intro .button { flex: none; }
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(420px, 1.2fr) minmax(290px, 0.88fr);
+  align-items: start;
+  gap: 22px;
+}
+.profile-identity-card {
+  overflow: hidden;
+  min-height: 560px;
+  color: #f8eedb;
+  background:
+    radial-gradient(circle at 78% 11%, rgba(210,179,124,0.19), transparent 16rem),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.018) 0 1px, transparent 1px 6px),
+    linear-gradient(155deg, #25473b, #112b24 72%);
+  border-color: rgba(210,179,124,0.5);
+  box-shadow: 0 24px 54px rgba(27,31,25,0.23);
+}
+.profile-identity-card::before { border-color: rgba(245,234,212,0.12); }
+.profile-avatar {
+  width: 92px;
+  height: 92px;
+  margin: 5px 0 27px;
+  display: grid;
+  place-items: center;
+  color: #fff6e5;
+  background: var(--red);
+  border: 1px solid #6a241b;
+  border-radius: 50%;
+  box-shadow: 0 0 0 6px rgba(210,179,124,0.18), inset 0 0 0 5px rgba(255,255,255,0.08);
+  font: 700 36px/1 var(--serif);
+  letter-spacing: -0.04em;
+}
+.profile-identity-card .eyebrow { color: var(--gold-soft); }
+.profile-identity-card h3 {
+  margin: 9px 0 7px;
+  color: #fff7e8;
+  font: 700 clamp(31px, 3vw, 43px)/1.02 var(--serif);
+  letter-spacing: -0.04em;
+}
+#profile-role-label {
+  margin: 0 0 7px;
+  color: #e4c98e;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.profile-email {
+  padding-bottom: 24px;
+  color: rgba(247,236,216,0.68);
+  border-bottom: 1px solid rgba(210,179,124,0.25);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.profile-purpose {
+  min-height: 112px;
+  margin: 25px 0;
+  color: rgba(255,248,232,0.88);
+  font: italic 18px/1.55 var(--serif);
+}
+.profile-identity-meta {
+  margin: 0;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid rgba(210,179,124,0.25);
+}
+.profile-identity-meta div {
+  padding: 13px 0;
+  display: grid;
+  grid-template-columns: 0.82fr 1.18fr;
+  gap: 12px;
+  border-bottom: 1px solid rgba(210,179,124,0.18);
+}
+.profile-identity-meta dt {
+  color: rgba(247,236,216,0.56);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.profile-identity-meta dd {
+  margin: 0;
+  color: #f7ecd7;
+  text-align: right;
+  font: 600 13px/1.35 var(--serif);
+}
+.profile-form { min-height: 560px; }
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.profile-form-note {
+  margin: -2px 0 0;
+  padding: 12px 14px;
+  color: var(--muted);
+  background: rgba(234,220,192,0.38);
+  border-left: 3px solid var(--gold);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.profile-save-status {
+  min-height: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+.profile-save-status[data-kind="success"] { color: var(--forest-2); }
+.profile-save-status[data-kind="error"] { color: var(--red); }
+.profile-side-stack { display: grid; gap: 18px; }
+.profile-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.profile-stat-grid div {
+  min-height: 91px;
+  padding: 17px 15px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  background: rgba(255,253,247,0.83);
+}
+.profile-stat-grid strong {
+  color: var(--forest);
+  font: 700 30px/1 var(--serif);
+}
+.profile-stat-grid span {
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.profile-readiness-list { display: grid; gap: 16px; }
+.profile-readiness-row > div:first-child {
+  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #514437;
+  font-size: 10px;
+  font-weight: 750;
+}
+.profile-readiness-row strong { color: var(--forest); font-size: 10px; }
+.profile-meter {
+  height: 7px;
+  overflow: hidden;
+  background: rgba(82,61,40,0.11);
+  border: 1px solid rgba(82,61,40,0.12);
+}
+.profile-meter i {
+  width: 0;
+  height: 100%;
+  display: block;
+  background: linear-gradient(90deg, var(--gold), var(--forest-2));
+  transition: width 240ms ease;
+}
+.profile-readiness-panel > p:last-child {
+  margin: 20px 0 0;
+  padding-top: 15px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  font: italic 13px/1.5 var(--serif);
+}
+.profile-privacy-note {
+  position: relative;
+  padding: 20px 21px 20px 26px;
+  color: #f6ead5;
+  background: linear-gradient(145deg, #183a31, #0f2922);
+  border: 1px solid rgba(210,179,124,0.43);
+  box-shadow: var(--shadow-paper);
+}
+.profile-privacy-note::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: var(--gold);
+}
+.profile-privacy-note b {
+  color: var(--gold-soft);
+  font: 700 17px/1.2 var(--serif);
+}
+.profile-privacy-note p {
+  margin: 8px 0 0;
+  color: rgba(246,234,213,0.72);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .profile-layout { grid-template-columns: minmax(250px, 0.75fr) minmax(420px, 1.25fr); }
+  .profile-side-stack { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-privacy-note { grid-column: 1 / -1; }
+}
+@media (max-width: 780px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-side-stack { grid-column: auto; grid-template-columns: 1fr; }
+  .profile-privacy-note { grid-column: auto; }
+  .profile-identity-card { min-height: 0; }
+  .profile-purpose { min-height: 0; }
+  .profile-form-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .profile-avatar { width: 78px; height: 78px; font-size: 31px; }
+  .profile-stat-grid div { min-height: 82px; padding: 14px 12px; }
+  .profile-identity-meta div { grid-template-columns: 1fr; }
+  .profile-identity-meta dd { text-align: left; }
+}
