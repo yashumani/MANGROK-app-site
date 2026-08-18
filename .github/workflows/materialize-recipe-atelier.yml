@@ -1,0 +1,218 @@
+name: Materialize and verify Recipe Atelier redesign
+
+on:
+  push:
+    branches:
+      - design/dribbble-atelier-reference-table
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-recipe-atelier-materialization
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out redesign branch
+        uses: actions/checkout@v6
+        with:
+          ref: design/dribbble-atelier-reference-table
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Repair the ingredient and agent dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/granular-ingredient-v2:refs/remotes/origin/agent/granular-ingredient-v2
+          files=(
+            src/agent-cloud.js
+            src/agent-skills.js
+            src/agent-system.js
+            src/agent-tools.js
+            src/agent-router.js
+            src/agent-memory.js
+            src/agent-runtime.js
+            src/agent-ai.js
+            src/agent-memory-ui.js
+            src/global-ingredient-ui.js
+            src/ingredient-catalog.js
+            src/ingredient-catalog-data.js
+            src/ingredient-submissions.js
+            src/kitchen-library.js
+            src/alchemy-cuisine-ui.js
+            scripts/generate-granular-v2.py
+            tests/global-ingredient-catalog.test.mjs
+            tests/agent-runtime.test.mjs
+            tests/agent-memory.test.mjs
+            supabase/migrations/004_global_ingredient_agent_memory.sql
+          )
+          for file in "${files[@]}"; do
+            if git cat-file -e "origin/agent/granular-ingredient-v2:${file}" 2>/dev/null; then
+              mkdir -p "$(dirname "$file")"
+              git show "origin/agent/granular-ingredient-v2:${file}" > "$file"
+            fi
+          done
+          if [[ ! -f src/ingredient-catalog.js ]]; then
+            echo "src/ingredient-catalog.js is still missing" >&2
+            exit 1
+          fi
+          if [[ ! -f src/ingredient-catalog-data.js ]]; then
+            if [[ -f scripts/generate-granular-v2.py ]]; then
+              python3 scripts/generate-granular-v2.py
+            else
+              echo "No versioned ingredient data or generator is available" >&2
+              exit 1
+            fi
+          fi
+          test -f src/ingredient-submissions.js
+          test -f src/agent-router.js
+
+      - name: Integrate the Recipe Atelier presentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          def read(path):
+              return Path(path).read_text(encoding="utf-8")
+          def write(path, value):
+              Path(path).write_text(value, encoding="utf-8")
+
+          index = read("index.html")
+          link = '<link rel="stylesheet" href="./assets/css/recipe-atelier.css">'
+          if link not in index:
+              if "</head>" not in index:
+                  raise SystemExit("index.html has no closing head")
+              index = index.replace("</head>", f"  {link}\n</head>", 1)
+          write("index.html", index)
+
+          runtime = read("runtime-config.js")
+          runtime = re.sub(r'appVersion:\s*"[^"]+"', 'appVersion: "3.5.0-alpha.6"', runtime, count=1)
+          additions = [
+              'import("./src/atelier-reference-table.js").catch(error => console.warn("Recipe Atelier enhancement", error));',
+          ]
+          if Path("src/global-ingredient-ui.js").exists():
+              additions.append('import("./src/global-ingredient-ui.js").catch(error => console.warn("Global ingredient enhancement", error));')
+          if Path("src/agent-memory-ui.js").exists():
+              additions.append('import("./src/agent-memory-ui.js").catch(error => console.warn("Agent memory enhancement", error));')
+          for line in additions:
+              if line not in runtime:
+                  runtime = runtime.rstrip() + "\n" + line + "\n"
+          write("runtime-config.js", runtime)
+
+          package = json.loads(read("package.json"))
+          package["version"] = "3.5.0-alpha.6"
+          package["description"] = "A local-first recipe atelier with source-aware starter recipes, deterministic culinary intelligence, local/private LLM adapters, and print-ready preservation."
+          write("package.json", json.dumps(package, indent=2) + "\n")
+
+          manifest_path = Path("manifest.webmanifest")
+          if manifest_path.exists():
+              manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+              manifest["name"] = "Mangrok Recipe Atelier"
+              manifest["short_name"] = "Mangrok"
+              manifest["theme_color"] = "#2e1627"
+              manifest["background_color"] = "#f6f0e6"
+              manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+          shell = read("sw.js")
+          shell = re.sub(r'const CACHE="[^"]+"', 'const CACHE="mangrok-v9-recipe-atelier"', shell, count=1)
+          assets = [
+              "./assets/css/recipe-atelier.css",
+              "./src/atelier-reference-recipes.js",
+              "./src/atelier-reference-table.js",
+              "./assets/reference-recipes/atelier-hero.svg",
+              "./assets/reference-recipes/cacio-e-pepe.svg",
+              "./assets/reference-recipes/miso-soup.svg",
+              "./assets/reference-recipes/bibimbap.svg",
+              "./assets/reference-recipes/chana-masala.svg",
+              "./assets/reference-recipes/hummus.svg",
+              "./assets/reference-recipes/guacamole.svg",
+              "./assets/reference-recipes/ratatouille.svg",
+              "./assets/reference-recipes/tom-yum-goong.svg",
+              "./assets/reference-recipes/misir-wot.svg",
+              "./assets/reference-recipes/jollof-rice.svg",
+              "./assets/reference-recipes/harira.svg",
+              "./assets/reference-recipes/peruvian-ceviche.svg",
+              "./assets/reference-recipes/shakshuka.svg",
+          ]
+          marker = "const APP_SHELL=["
+          if marker not in shell:
+              raise SystemExit("service worker APP_SHELL marker missing")
+          missing = [value for value in assets if json.dumps(value) not in shell]
+          if missing:
+              prefix = ",".join(json.dumps(value) for value in missing) + ","
+              shell = shell.replace(marker, marker + prefix, 1)
+          write("sw.js", shell)
+          PY
+
+      - name: Remove obsolete transport and temporary release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/export-global-ingredient-source.yml \
+            .github/workflows/export-usda-ingredient-reference.yml \
+            .github/workflows/export-usda-reference-v2.yml \
+            .github/workflows/fix-global-agent-release.yml \
+            .github/workflows/materialize-global-ingredient-agent.yml \
+            .github/workflows/verify-global-agent-release.yml \
+            .github/workflows/export-granular-v2-base.yml \
+            .github/workflows/materialize-granular-v2.yml \
+            docs/STOPGAP.md \
+            docs/LAST-MARKER.md \
+            docs/PR.md \
+            docs/PR-READY.md \
+            docs/READY.md \
+            docs/FINAL-PREP.md \
+            docs/PULL-REQUEST-NOTE.md \
+            docs/RELEASE-MARKER.md \
+            docs/RELEASE-NAME.md \
+            docs/RELEASE-INTENT.md \
+            docs/PR-GATE.md
+
+      - name: Verify source, artwork, and complete application
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f src/atelier-reference-recipes.js
+          test -f src/atelier-reference-table.js
+          test -f assets/css/recipe-atelier.css
+          test "$(find assets/reference-recipes -maxdepth 1 -name '*.svg' | wc -l)" -ge 13
+          node --input-type=module - <<'NODE'
+          import { REFERENCE_RECIPES } from './src/atelier-reference-recipes.js';
+          if (REFERENCE_RECIPES.length < 12) throw new Error('Reference table is incomplete');
+          if (new Set(REFERENCE_RECIPES.map(item => item.tradition)).size < 10) throw new Error('Reference table lacks culinary diversity');
+          for (const item of REFERENCE_RECIPES) {
+            if (item.sources.length < 2) throw new Error(`${item.id} lacks source review`);
+            if (!item.context || !item.adaptation) throw new Error(`${item.id} lacks contextual boundaries`);
+          }
+          NODE
+          npm run check
+          git diff --check
+
+      - name: Commit the materialized redesign
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/materialize-recipe-atelier.yml
+          git config user.name "Mangrok Recipe Atelier Release"
+          git config user.email "51677943+yashumani@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No materialized changes remained to commit."
+            exit 0
+          fi
+          git commit -m "Redesign Mangrok as a source-aware Recipe Atelier"
+          git push origin HEAD:design/dribbble-atelier-reference-table
