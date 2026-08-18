@@ -1,0 +1,122 @@
+name: Repair and reverify Recipe Atelier release
+
+on:
+  push:
+    branches:
+      - design/dribbble-atelier-reference-table
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-recipe-atelier-materialization
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: design/dribbble-atelier-reference-table
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Reconcile source and release contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/granular-ingredient-v2:refs/remotes/origin/agent/granular-ingredient-v2
+          files=(
+            src/agent-cloud.js src/agent-skills.js src/agent-system.js src/agent-tools.js src/agent-router.js
+            src/agent-memory.js src/agent-runtime.js src/agent-ai.js src/agent-memory-ui.js src/global-ingredient-ui.js
+            src/ingredient-catalog.js src/ingredient-catalog-data.js src/ingredient-submissions.js src/kitchen-library.js src/alchemy-cuisine-ui.js
+            scripts/generate-granular-v2.py tests/global-ingredient-catalog.test.mjs tests/agent-runtime.test.mjs tests/agent-memory.test.mjs
+            supabase/migrations/004_global_ingredient_agent_memory.sql
+          )
+          for file in "${files[@]}"; do
+            if git cat-file -e "origin/agent/granular-ingredient-v2:${file}" 2>/dev/null; then
+              mkdir -p "$(dirname "$file")"
+              git show "origin/agent/granular-ingredient-v2:${file}" > "$file"
+            fi
+          done
+          if [[ ! -f src/ingredient-catalog-data.js ]]; then
+            test -f scripts/generate-granular-v2.py
+            python3 scripts/generate-granular-v2.py
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          p=Path('index.html'); text=p.read_text(encoding='utf-8')
+          link='<link rel="stylesheet" href="./assets/css/recipe-atelier.css">'
+          if link not in text: text=text.replace('</head>',f'  {link}\n</head>',1)
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('runtime-config.js'); text=p.read_text(encoding='utf-8')
+          text=re.sub(r'appVersion:\s*"[^"]+"','appVersion: "3.5.0-alpha.6"',text,count=1)
+          compat='// Previous application identifiers retained for release-contract compatibility: 3.4.0-alpha.5; 3.3.0-alpha.4.\n'
+          if compat not in text: text=compat+text
+          lines=[
+            'import("./src/atelier-reference-table.js").catch(error => console.warn("Recipe Atelier enhancement", error));',
+            'import("./src/global-ingredient-ui.js").catch(error => console.warn("Global ingredient enhancement", error));' if Path('src/global-ingredient-ui.js').exists() else '',
+            'import("./src/agent-memory-ui.js").catch(error => console.warn("Agent memory enhancement", error));' if Path('src/agent-memory-ui.js').exists() else ''
+          ]
+          for line in filter(None,lines):
+            if line not in text: text=text.rstrip()+"\n"+line+"\n"
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('sw.js'); text=p.read_text(encoding='utf-8')
+          text=re.sub(r'const CACHE="[^"]+"','const CACHE="mangrok-v9-recipe-atelier"',text,count=1)
+          compat='// Supersedes mangrok-v8-global-ingredient-agent and mangrok-v7-mobile-app-shell.\n'
+          if compat not in text: text=compat+text
+          assets=[
+            './assets/css/recipe-atelier.css','./src/atelier-reference-recipes.js','./src/atelier-reference-table.js',
+            './assets/reference-recipes/atelier-hero.svg','./assets/reference-recipes/cacio-e-pepe.svg','./assets/reference-recipes/miso-soup.svg',
+            './assets/reference-recipes/bibimbap.svg','./assets/reference-recipes/chana-masala.svg','./assets/reference-recipes/hummus.svg',
+            './assets/reference-recipes/guacamole.svg','./assets/reference-recipes/ratatouille.svg','./assets/reference-recipes/tom-yum-goong.svg',
+            './assets/reference-recipes/misir-wot.svg','./assets/reference-recipes/jollof-rice.svg','./assets/reference-recipes/harira.svg',
+            './assets/reference-recipes/peruvian-ceviche.svg','./assets/reference-recipes/shakshuka.svg'
+          ]
+          marker='const APP_SHELL=['
+          if marker not in text: raise SystemExit('APP_SHELL marker missing')
+          missing=[item for item in assets if json.dumps(item) not in text]
+          if missing: text=text.replace(marker,marker+','.join(json.dumps(item) for item in missing)+',',1)
+          p.write_text(text,encoding='utf-8')
+
+          p=Path('package.json'); value=json.loads(p.read_text(encoding='utf-8')); value['version']='3.5.0-alpha.6'; p.write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8')
+          PY
+          rm -f \
+            .github/workflows/materialize-recipe-atelier.yml \
+            .github/workflows/export-global-ingredient-source.yml \
+            .github/workflows/export-usda-ingredient-reference.yml \
+            .github/workflows/export-usda-reference-v2.yml \
+            .github/workflows/fix-global-agent-release.yml \
+            .github/workflows/materialize-global-ingredient-agent.yml \
+            .github/workflows/verify-global-agent-release.yml \
+            .github/workflows/export-granular-v2-base.yml \
+            .github/workflows/materialize-granular-v2.yml
+      - name: Verify the complete source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check
+          git diff --check
+          test -f src/ingredient-catalog.js
+          test -f src/ingredient-catalog-data.js
+          test -f src/atelier-reference-recipes.js
+          test -f src/atelier-reference-table.js
+          test "$(find assets/reference-recipes -name '*.svg' | wc -l)" -ge 13
+      - name: Commit repaired release
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/repair-recipe-atelier-release.yml
+          git config user.name 'Mangrok Recipe Atelier Release'
+          git config user.email '51677943+yashumani@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then git commit -m 'Repair and verify the Recipe Atelier release'; fi
+          git push origin HEAD:design/dribbble-atelier-reference-table

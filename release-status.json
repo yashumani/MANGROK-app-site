@@ -1,0 +1,24 @@
+{
+  "product": "Mangrok Recipe Atelier",
+  "applicationVersion": "3.5.0-alpha.6",
+  "pwaCache": "mangrok-v9-recipe-atelier",
+  "referenceRecipeVersion": "2026.08-atelier.1",
+  "referenceRecipeCount": 12,
+  "designDirection": "warm editorial recipe atelier with a dark culinary Alchemy laboratory",
+  "functionalityPreserved": [
+    "recipe-vault",
+    "encryption-and-sealed-notes",
+    "sharing-and-trusted-circles",
+    "backups-and-restore",
+    "print-studio",
+    "legacy-safeguards",
+    "deterministic-culinary-engine",
+    "webllm",
+    "self-hosted-openai-compatible-model",
+    "private-ai-gateway",
+    "entitlements-and-trials",
+    "mobile-app-shell"
+  ],
+  "releaseGate": "npm run check plus source, provenance, artwork, and deployment verification",
+  "state": "candidate-until-promoted-by-green-workflow"
+}
