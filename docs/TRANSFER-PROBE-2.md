@@ -1,1 +1,0 @@
-This temporary probe confirms the branch remains writable while the verified source package is transferred. Remove before review.

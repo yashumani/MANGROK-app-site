@@ -1,0 +1,13 @@
+{
+  "release": "Recipe Atelier and restored Alchemy",
+  "applicationVersion": "3.5.0-alpha.6",
+  "pwaCache": "mangrok-v10-atelier-alchemy-restored",
+  "baselineCommit": "017bee2ddd4e2b1520bb650cb636370b2161966c",
+  "referenceRecipeEdition": "2026.08-atelier.1",
+  "referenceRecipes": 13,
+  "alchemyRestored": true,
+  "localLLMAdaptersPreserved": true,
+  "deterministicFallbackPreserved": true,
+  "mobileAppShellPreserved": true,
+  "note": "This release intentionally restores the last fully validated Alchemy/mobile baseline before adding the source-aware Recipe Atelier. The unfinished global-agent catalog remains outside this production tree until its dependency graph and CI are repaired."
+}
