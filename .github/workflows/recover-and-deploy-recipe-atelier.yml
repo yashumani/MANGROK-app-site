@@ -1,0 +1,307 @@
+name: Recover and deploy Recipe Atelier with Alchemy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/recover-and-deploy-recipe-atelier.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mangrok-recipe-atelier-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Fetch verified source branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin \
+            design/dribbble-atelier-reference-table:refs/remotes/origin/design/dribbble-atelier-reference-table \
+            agent/granular-ingredient-v2:refs/remotes/origin/agent/granular-ingredient-v2
+
+      - name: Restore complete ingredient and bounded-agent source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_ref=origin/agent/granular-ingredient-v2
+          files=(
+            src/agent-cloud.js
+            src/agent-skills.js
+            src/agent-system.js
+            src/agent-tools.js
+            src/agent-router.js
+            src/agent-memory.js
+            src/agent-runtime.js
+            src/agent-ai.js
+            src/agent-memory-ui.js
+            src/global-ingredient-ui.js
+            src/ingredient-catalog.js
+            src/ingredient-submissions.js
+            src/kitchen-library.js
+            src/alchemy-cuisine-ui.js
+            scripts/generate-granular-v2.py
+            tests/global-ingredient-catalog.test.mjs
+            tests/agent-runtime.test.mjs
+            tests/agent-memory.test.mjs
+            supabase/migrations/004_global_ingredient_agent_memory.sql
+          )
+          for file in "${files[@]}"; do
+            if ! git cat-file -e "$source_ref:$file" 2>/dev/null; then
+              echo "Required source file is missing from $source_ref: $file" >&2
+              exit 1
+            fi
+            mkdir -p "$(dirname "$file")"
+            git show "$source_ref:$file" > "$file"
+          done
+
+      - name: Generate the versioned 4,301-entry ingredient catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/mangrok-usda
+          mkdir -p /tmp/mangrok-usda/foundation /tmp/mangrok-usda/sr docs
+          curl --fail --location --retry 3 \
+            -o /tmp/mangrok-usda/foundation.zip \
+            https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-04-30.zip
+          curl --fail --location --retry 3 \
+            -o /tmp/mangrok-usda/sr.zip \
+            https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip
+          unzip -q /tmp/mangrok-usda/foundation.zip -d /tmp/mangrok-usda/foundation
+          unzip -q /tmp/mangrok-usda/sr.zip -d /tmp/mangrok-usda/sr
+          python3 scripts/generate-granular-v2.py \
+            --root /tmp/mangrok-usda/foundation \
+            --root /tmp/mangrok-usda/sr \
+            --output src/ingredient-catalog-data.js \
+            --stats docs/INGREDIENT-CATALOG-STATS.json
+          test -s src/ingredient-catalog-data.js
+          grep -q '"count":4301' src/ingredient-catalog-data.js
+
+      - name: Apply the Recipe Atelier presentation and source-aware references
+        shell: bash
+        run: |
+          set -euo pipefail
+          design_ref=origin/design/dribbble-atelier-reference-table
+          paths=(
+            assets/css/recipe-atelier.css
+            assets/reference-recipes
+            src/atelier-reference-recipes.js
+            src/atelier-reference-table.js
+            tests/reference-recipes.test.mjs
+            docs/AUTHENTICITY-REVIEW.md
+            docs/DESIGN-SYSTEM-TOKENS.md
+            docs/DRIBBBLE-ATELIER-DESIGN.md
+            docs/DRIBBBLE-RESEARCH-NOTES.md
+            docs/IMAGE-ASSET-POLICY.md
+            docs/REFERENCE-RECIPE-LINEAGE.md
+            docs/REFERENCE-RECIPE-POLICY.md
+            docs/REFERENCE-TABLE-ACCEPTANCE.md
+            docs/STARTER-RECIPE-SOURCES.md
+          )
+          for path in "${paths[@]}"; do
+            if ! git cat-file -e "$design_ref:$path" 2>/dev/null; then
+              echo "Required Recipe Atelier path is missing: $path" >&2
+              exit 1
+            fi
+            git checkout "$design_ref" -- "$path"
+          done
+
+      - name: Integrate runtime, PWA shell, and release identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, value):
+              Path(path).write_text(value, encoding='utf-8')
+
+          index = read('index.html')
+          css = '<link rel="stylesheet" href="./assets/css/recipe-atelier.css">'
+          if css not in index:
+              index = index.replace('</head>', f'  {css}\n</head>', 1)
+          write('index.html', index)
+
+          runtime = read('runtime-config.js')
+          runtime = re.sub(r'appVersion:\s*"[^"]+"', 'appVersion: "3.5.0-alpha.6"', runtime, count=1)
+          imports = [
+              'import("./src/atelier-reference-table.js").catch(error => console.warn("Recipe Atelier enhancement", error));',
+              'import("./src/alchemy-cuisine-ui.js").catch(error => console.warn("Alchemy cuisine enhancement", error));',
+              'import("./src/global-ingredient-ui.js").catch(error => console.warn("Global ingredient enhancement", error));',
+              'import("./src/agent-memory-ui.js").catch(error => console.warn("Agent memory enhancement", error));'
+          ]
+          for line in imports:
+              if line not in runtime:
+                  runtime = runtime.rstrip() + '\n' + line + '\n'
+          write('runtime-config.js', runtime)
+
+          package = json.loads(read('package.json'))
+          package['version'] = '3.5.0-alpha.6'
+          package['description'] = 'A local-first recipe atelier with source-aware starter recipes, restored Alchemy, deterministic culinary intelligence, local/private LLM adapters, and print-ready preservation.'
+          write('package.json', json.dumps(package, indent=2) + '\n')
+
+          manifest_path = Path('manifest.webmanifest')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['name'] = 'Mangrok Recipe Atelier'
+          manifest['short_name'] = 'Mangrok'
+          manifest['theme_color'] = '#2e1627'
+          manifest['background_color'] = '#f6f0e6'
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+
+          shell = read('sw.js')
+          shell = re.sub(r'const CACHE="[^"]+"', 'const CACHE="mangrok-v10-atelier-alchemy-restored"', shell, count=1)
+          assets = [
+              './assets/css/recipe-atelier.css',
+              './src/atelier-reference-recipes.js',
+              './src/atelier-reference-table.js',
+              './src/agent-cloud.js',
+              './src/agent-skills.js',
+              './src/agent-system.js',
+              './src/agent-tools.js',
+              './src/agent-router.js',
+              './src/agent-memory.js',
+              './src/agent-runtime.js',
+              './src/agent-ai.js',
+              './src/agent-memory-ui.js',
+              './src/global-ingredient-ui.js',
+              './src/ingredient-catalog.js',
+              './src/ingredient-catalog-data.js',
+              './src/ingredient-submissions.js',
+              './src/alchemy-cuisine-ui.js',
+              './assets/reference-recipes/atelier-hero.svg',
+              './assets/reference-recipes/cacio-e-pepe.svg',
+              './assets/reference-recipes/miso-soup.svg',
+              './assets/reference-recipes/bibimbap.svg',
+              './assets/reference-recipes/chana-masala.svg',
+              './assets/reference-recipes/hummus.svg',
+              './assets/reference-recipes/guacamole.svg',
+              './assets/reference-recipes/ratatouille.svg',
+              './assets/reference-recipes/tom-yum-goong.svg',
+              './assets/reference-recipes/misir-wot.svg',
+              './assets/reference-recipes/jollof-rice.svg',
+              './assets/reference-recipes/harira.svg',
+              './assets/reference-recipes/peruvian-ceviche.svg',
+              './assets/reference-recipes/shakshuka.svg'
+          ]
+          marker = 'const APP_SHELL=['
+          if marker not in shell:
+              raise SystemExit('Service-worker application-shell marker is missing.')
+          missing = [asset for asset in assets if json.dumps(asset) not in shell]
+          if missing:
+              shell = shell.replace(marker, marker + ','.join(json.dumps(asset) for asset in missing) + ',', 1)
+          write('sw.js', shell)
+
+          status = {
+              'release': 'Recipe Atelier + Alchemy recovery',
+              'applicationVersion': '3.5.0-alpha.6',
+              'pwaCache': 'mangrok-v10-atelier-alchemy-restored',
+              'ingredientCatalogVersion': '2026.08.13-global-granular-v2',
+              'referenceRecipes': 13,
+              'alchemyRestored': True,
+              'localLLMAdaptersPreserved': True
+          }
+          write('release-status.json', json.dumps(status, indent=2) + '\n')
+          PY
+
+      - name: Remove obsolete transfer and materialization workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/recover-and-deploy-recipe-atelier.yml \
+            .github/workflows/export-global-ingredient-source.yml \
+            .github/workflows/export-usda-ingredient-reference.yml \
+            .github/workflows/export-usda-reference-v2.yml \
+            .github/workflows/fix-global-agent-release.yml \
+            .github/workflows/materialize-global-ingredient-agent.yml \
+            .github/workflows/verify-global-agent-release.yml \
+            .github/workflows/export-granular-v2-base.yml \
+            .github/workflows/materialize-granular-v2.yml
+          rm -f \
+            docs/STOPGAP.md docs/LAST-MARKER.md docs/PR.md docs/PR-READY.md \
+            docs/READY.md docs/FINAL-PREP.md docs/PULL-REQUEST-NOTE.md \
+            docs/RELEASE-MARKER.md docs/RELEASE-NAME.md docs/RELEASE-INTENT.md \
+            docs/PR-GATE.md docs/TRANSFER-INSTRUCTIONS.md docs/TRANSFER-PROBE-2.md
+
+      - name: Verify complete source and Alchemy availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            src/alchemy-ui.js
+            src/culinary-engine.js
+            src/local-ai.js
+            src/ingredient-catalog.js
+            src/ingredient-catalog-data.js
+            src/ingredient-submissions.js
+            src/agent-router.js
+            src/agent-runtime.js
+            src/atelier-reference-recipes.js
+            src/atelier-reference-table.js
+            assets/css/recipe-atelier.css
+          )
+          for file in "${required[@]}"; do test -s "$file"; done
+          grep -q 'Alchemy Lab' src/alchemy-ui.js
+          grep -q 'import("./src/alchemy-ui.js")' runtime-config.js
+          grep -q 'mangrok-v10-atelier-alchemy-restored' sw.js
+          node --input-type=module - <<'NODE'
+          import { REFERENCE_RECIPES } from './src/atelier-reference-recipes.js';
+          import { ingredientCatalogStats } from './src/ingredient-catalog.js';
+          if (REFERENCE_RECIPES.length < 12) throw new Error('Reference table is incomplete.');
+          if (new Set(REFERENCE_RECIPES.map(item => item.tradition)).size < 10) throw new Error('Reference table lacks culinary diversity.');
+          const stats = ingredientCatalogStats();
+          if (stats.published !== 4301) throw new Error(`Expected 4301 ingredients, received ${stats.published}.`);
+          NODE
+          npm run check
+          git diff --check
+
+      - name: Commit the verified recovery to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Mangrok Release Automation'
+          git config user.email '51677943+yashumani@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No release changes remained to commit.'
+          else
+            git commit -m 'Deploy Recipe Atelier and restore Alchemy'
+            git push origin HEAD:main
+          fi
+
+      - name: Upload the verified Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+      - name: Deploy the verified artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
