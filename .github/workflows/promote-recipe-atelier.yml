@@ -1,0 +1,89 @@
+name: Promote verified Recipe Atelier to main
+
+on:
+  push:
+    branches:
+      - design/dribbble-atelier-reference-table
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mangrok-recipe-atelier-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v6
+        with:
+          ref: design/dribbble-atelier-reference-table
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Wait for normal source materialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='design/dribbble-atelier-reference-table'
+          ready=0
+          for attempt in $(seq 1 48); do
+            git fetch origin "$branch"
+            git reset --hard "origin/$branch"
+            if [[ ! -f .github/workflows/materialize-recipe-atelier.yml ]] \
+              && grep -q '3.5.0-alpha.6' runtime-config.js \
+              && grep -q 'mangrok-v9-recipe-atelier' sw.js \
+              && [[ -f src/ingredient-catalog.js ]] \
+              && [[ -f src/ingredient-catalog-data.js ]] \
+              && [[ -f src/atelier-reference-recipes.js ]] \
+              && [[ -f src/atelier-reference-table.js ]]; then
+              ready=1
+              break
+            fi
+            sleep 10
+          done
+          if [[ "$ready" != 1 ]]; then
+            echo 'The Recipe Atelier materialization did not reach a reviewable source tree.' >&2
+            exit 1
+          fi
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Run the complete release gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check
+          git diff --check
+          node --input-type=module - <<'NODE'
+          import { REFERENCE_RECIPES } from './src/atelier-reference-recipes.js';
+          if (REFERENCE_RECIPES.length < 12) throw new Error('Reference recipes missing');
+          if (new Set(REFERENCE_RECIPES.map(item => item.tradition)).size < 10) throw new Error('Cultural coverage regression');
+          const sources = REFERENCE_RECIPES.flatMap(item => item.sources);
+          if (sources.some(source => !/^https:\/\//.test(source.url))) throw new Error('Invalid source URL');
+          NODE
+          test "$(find assets/reference-recipes -maxdepth 1 -name '*.svg' | wc -l)" -ge 13
+          if grep -RIl '^/Td6WFo' . --exclude-dir=.git | grep -q .; then
+            echo 'Encoded transport data remains in the release.' >&2
+            exit 1
+          fi
+
+      - name: Remove one-time promotion and publish normal source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/promote-recipe-atelier.yml
+          git config user.name 'Mangrok Recipe Atelier Release'
+          git config user.email '51677943+yashumani@users.noreply.github.com'
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -m 'Finalize the verified Recipe Atelier release'
+          fi
+          git push origin HEAD:design/dribbble-atelier-reference-table
+          git push origin HEAD:main
