@@ -1,0 +1,21 @@
+name: Start Recipe Atelier recovery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/kick-recipe-atelier-recovery.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch guarded recovery workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run recover-and-deploy-recipe-atelier.yml --repo "$GITHUB_REPOSITORY" --ref main
