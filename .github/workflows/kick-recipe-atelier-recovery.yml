@@ -1,3 +1,4 @@
+# Second push intentionally starts this dispatcher after the workflow exists on main.
 name: Start Recipe Atelier recovery
 
 on:
