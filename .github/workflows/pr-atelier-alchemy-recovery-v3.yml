@@ -1,0 +1,60 @@
+name: Verify, merge, and deploy Recipe Atelier recovery
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: mangrok-pr-atelier-alchemy-recovery-v3
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.event.pull_request.head.ref == 'release/atelier-alchemy-recovery-v3' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out recovery branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Materialize and verify the complete source tree
+        env:
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: bash .github/scripts/materialize-atelier-alchemy.sh
+
+      - name: Merge the verified pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          sleep 5
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+
+      - name: Upload the exact verified Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+      - name: Deploy the verified artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
