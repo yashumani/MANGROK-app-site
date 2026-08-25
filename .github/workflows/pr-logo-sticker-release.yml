@@ -27,7 +27,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+      - name: Load trusted release materializer from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main:refs/remotes/origin/main
+          git show origin/main:.github/scripts/release-logo-sticker-studio-v2.sh > /tmp/release-logo-sticker-studio.sh
+          chmod +x /tmp/release-logo-sticker-studio.sh
       - name: Materialize, integrate, and verify
         env:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: bash .github/scripts/release-logo-sticker-studio.sh
+        run: /tmp/release-logo-sticker-studio.sh
