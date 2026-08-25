@@ -2,11 +2,9 @@
 set -euo pipefail
 : "${HEAD_BRANCH:?HEAD_BRANCH is required}"
 
-git fetch origin \
-  design/dribbble-atelier-reference-table:refs/remotes/origin/design/dribbble-atelier-reference-table \
-  agent/granular-ingredient-v2:refs/remotes/origin/agent/granular-ingredient-v2
-
-# Restore the complete reviewed dependency graph if the earlier recovery did not reach main.
+# Pull the completed ingredient/agent source so this release contains the work
+# already prepared in the project, while keeping the verified Atelier/Alchemy base.
+git fetch origin agent/granular-ingredient-v2:refs/remotes/origin/agent/granular-ingredient-v2
 source_ref=origin/agent/granular-ingredient-v2
 files=(
   src/agent-cloud.js src/agent-skills.js src/agent-system.js src/agent-tools.js src/agent-router.js
@@ -21,6 +19,7 @@ for file in "${files[@]}"; do
   git show "$source_ref:$file" > "$file"
 done
 
+# Materialize the versioned ingredient catalog only when it is not already present.
 needs_catalog=1
 if [[ -s src/ingredient-catalog-data.js ]]; then
   if node --input-type=module - <<'NODE' >/dev/null 2>&1
@@ -36,23 +35,14 @@ if [[ "$needs_catalog" == 1 ]]; then
   curl --fail --location --retry 3 -o /tmp/mangrok-usda/sr.zip https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip
   unzip -q /tmp/mangrok-usda/foundation.zip -d /tmp/mangrok-usda/foundation
   unzip -q /tmp/mangrok-usda/sr.zip -d /tmp/mangrok-usda/sr
-  python3 scripts/generate-granular-v2.py --root /tmp/mangrok-usda/foundation --root /tmp/mangrok-usda/sr --output src/ingredient-catalog-data.js --stats docs/INGREDIENT-CATALOG-STATS.json
+  python3 scripts/generate-granular-v2.py \
+    --root /tmp/mangrok-usda/foundation \
+    --root /tmp/mangrok-usda/sr \
+    --output src/ingredient-catalog-data.js \
+    --stats docs/INGREDIENT-CATALOG-STATS.json
 fi
 grep -q '"count":4301' src/ingredient-catalog-data.js
 
-design_ref=origin/design/dribbble-atelier-reference-table
-paths=(
-  assets/css/recipe-atelier.css assets/reference-recipes src/atelier-reference-recipes.js src/atelier-reference-table.js
-  tests/reference-recipes.test.mjs docs/AUTHENTICITY-REVIEW.md docs/DESIGN-SYSTEM-TOKENS.md docs/DRIBBBLE-ATELIER-DESIGN.md
-  docs/DRIBBBLE-RESEARCH-NOTES.md docs/IMAGE-ASSET-POLICY.md docs/REFERENCE-RECIPE-LINEAGE.md docs/REFERENCE-RECIPE-POLICY.md
-  docs/REFERENCE-TABLE-ACCEPTANCE.md docs/STARTER-RECIPE-SOURCES.md
-)
-for path in "${paths[@]}"; do
-  git cat-file -e "$design_ref:$path"
-  git checkout "$design_ref" -- "$path"
-done
-
-# The PR must already contain the original vector and sticker modules reviewed in this release.
 required_brand=(
   assets/brand/mangrok-mark.svg assets/brand/mangrok-wordmark.svg assets/brand/mangrok-seal.svg
   assets/css/brand-reveal.css assets/css/sticker-studio.css
@@ -63,79 +53,163 @@ cp assets/brand/mangrok-mark.svg assets/mangrok-mark.svg
 
 python3 - <<'PY'
 from pathlib import Path
-import json,re
+import json
+import re
 
-def read(p): return Path(p).read_text(encoding='utf-8')
-def write(p,v): Path(p).write_text(v,encoding='utf-8')
 
-index=read('index.html')
-for css in ['./assets/css/recipe-atelier.css','./assets/css/brand-reveal.css','./assets/css/sticker-studio.css']:
-    tag=f'<link rel="stylesheet" href="{css}">'
-    if tag not in index: index=index.replace('</head>',f'  {tag}\n</head>',1)
-script='<script src="./src/brand-reveal.js"></script>'
+def read(path):
+    return Path(path).read_text(encoding="utf-8")
+
+
+def write(path, value):
+    Path(path).write_text(value, encoding="utf-8")
+
+
+index = read("index.html")
+index = re.sub(r'<meta name="theme-color" content="[^"]+">', '<meta name="theme-color" content="#2e1627">', index, count=1)
+for css in [
+    "./assets/css/recipe-atelier.css",
+    "./assets/css/brand-reveal.css",
+    "./assets/css/sticker-studio.css",
+]:
+    tag = f'<link rel="stylesheet" href="{css}">'
+    if tag not in index:
+        index = index.replace("</head>", f"  {tag}\n</head>", 1)
+script = '<script type="module" src="./src/brand-reveal.js"></script>'
 if script not in index:
-    first=index.find('<link rel="stylesheet"')
-    index=index[:first]+script+'\n  '+index[first:] if first>=0 else index.replace('</head>',f'  {script}\n</head>',1)
-write('index.html',index)
+    index = index.replace("</head>", f"  {script}\n</head>", 1)
+write("index.html", index)
 
-app=read('src/app.js')
-if 'from "./print.js"' in app: app=app.replace('from "./print.js"','from "./print-with-stickers.js"',1)
-elif "from './print.js'" in app: app=app.replace("from './print.js'","from './print-with-stickers.js'",1)
-elif 'print-with-stickers.js' not in app: raise SystemExit('Print module import was not found.')
-app=app.replace('.slice(0, 4)', '.slice(0, 48)', 1).replace('.slice(0,4)', '.slice(0,48)', 1)
-write('src/app.js',app)
+app = read("src/app.js")
+if 'from "./print.js"' in app:
+    app = app.replace('from "./print.js"', 'from "./print-with-stickers.js"', 1)
+elif "from './print.js'" in app:
+    app = app.replace("from './print.js'", "from './print-with-stickers.js'", 1)
+elif "print-with-stickers.js" not in app:
+    raise SystemExit("Print module import was not found.")
+app = app.replace(".slice(0, 4)", ".slice(0, 48)", 1).replace(".slice(0,4)", ".slice(0,48)", 1)
+write("src/app.js", app)
 
-runtime=read('runtime-config.js')
-runtime=re.sub(r'appVersion:\s*"[^"]+"','appVersion: "3.6.0-alpha.7"',runtime,count=1)
-runtime='\n'.join(line for line in runtime.splitlines() if 'print-decor.js' not in line)+'\n'
-imports=[
-'import("./src/atelier-reference-table.js").catch(error => console.warn("Recipe Atelier enhancement", error));',
-'import("./src/alchemy-cuisine-ui.js").catch(error => console.warn("Alchemy cuisine enhancement", error));',
-'import("./src/global-ingredient-ui.js").catch(error => console.warn("Global ingredient enhancement", error));',
-'import("./src/agent-memory-ui.js").catch(error => console.warn("Agent memory enhancement", error));',
-'import("./src/sticker-studio.js").catch(error => console.warn("Sticker Studio enhancement", error));'
+# Make the externally positioned sticker editor form-associated and avoid a
+# MutationObserver loop caused by rewriting the overlay it was observing.
+studio = read("src/sticker-studio.js")
+legacy_hidden = '<input id="print-illustrations" name="print-illustrations" type="hidden" value="[]">'
+form_hidden = '<input id="print-illustrations" name="decorations" form="book-form" type="hidden" value="[]">'
+if legacy_hidden in studio:
+    studio = studio.replace(legacy_hidden, form_hidden, 1)
+elif form_hidden not in studio:
+    raise SystemExit("Sticker form-association marker was not found.")
+legacy_observer = 'function observePrintPreview(view){new MutationObserver(()=>renderIntoBookPreview()).observe(view,{childList:true,subtree:true});}'
+safe_observer = 'function observePrintPreview(view){const refresh=()=>setTimeout(renderIntoBookPreview,0);view.querySelector("#book-form")?.addEventListener("change",refresh);view.querySelector("#preview-book-button")?.addEventListener("click",refresh);}'
+if legacy_observer in studio:
+    studio = studio.replace(legacy_observer, safe_observer, 1)
+elif safe_observer not in studio:
+    raise SystemExit("Sticker preview-observer marker was not found.")
+write("src/sticker-studio.js", studio)
+
+runtime = read("runtime-config.js")
+runtime = re.sub(r'appVersion:\s*"[^"]+"', 'appVersion: "3.6.0-alpha.7"', runtime, count=1)
+runtime = "\n".join(line for line in runtime.splitlines() if "print-decor.js" not in line) + "\n"
+imports = [
+    'import("./src/atelier-reference-table.js").catch(error => console.warn("Recipe Atelier enhancement", error));',
+    'import("./src/alchemy-cuisine-ui.js").catch(error => console.warn("Alchemy cuisine enhancement", error));',
+    'import("./src/global-ingredient-ui.js").catch(error => console.warn("Global ingredient enhancement", error));',
+    'import("./src/agent-memory-ui.js").catch(error => console.warn("Agent memory enhancement", error));',
+    'import("./src/sticker-studio.js").catch(error => console.warn("Sticker Studio enhancement", error));',
 ]
 for line in imports:
-    if line not in runtime: runtime=runtime.rstrip()+'\n'+line+'\n'
-write('runtime-config.js',runtime)
+    if line not in runtime:
+        runtime = runtime.rstrip() + "\n" + line + "\n"
+write("runtime-config.js", runtime)
 
-package=json.loads(read('package.json'))
-package['version']='3.6.0-alpha.7'
-package['description']='A local-first recipe atelier with restored culinary Alchemy, source-aware references, a vector brand reveal, and a layered cookbook sticker studio.'
-write('package.json',json.dumps(package,indent=2)+'\n')
+package = json.loads(read("package.json"))
+package["version"] = "3.6.0-alpha.7"
+package["description"] = "A local-first recipe atelier with restored culinary Alchemy, source-aware references, global ingredient knowledge, a vector brand reveal, and a layered cookbook sticker studio."
+write("package.json", json.dumps(package, indent=2) + "\n")
 
-manifest=json.loads(read('manifest.webmanifest'))
-manifest.update({'name':'Mangrok Recipe Atelier','short_name':'Mangrok','theme_color':'#2e1627','background_color':'#f6f0e6'})
-write('manifest.webmanifest',json.dumps(manifest,indent=2)+'\n')
+manifest = json.loads(read("manifest.webmanifest"))
+manifest.update({
+    "name": "Mangrok Recipe Atelier",
+    "short_name": "Mangrok",
+    "theme_color": "#2e1627",
+    "background_color": "#f6f0e6",
+})
+write("manifest.webmanifest", json.dumps(manifest, indent=2) + "\n")
 
-shell=read('sw.js')
-shell=re.sub(r'const CACHE="[^"]+"','const CACHE="mangrok-v11-logo-sticker-studio"',shell,count=1)
-assets=[
-'./assets/css/recipe-atelier.css','./src/atelier-reference-recipes.js','./src/atelier-reference-table.js',
-'./src/agent-cloud.js','./src/agent-skills.js','./src/agent-system.js','./src/agent-tools.js','./src/agent-router.js','./src/agent-memory.js','./src/agent-runtime.js','./src/agent-ai.js','./src/agent-memory-ui.js','./src/global-ingredient-ui.js','./src/ingredient-catalog.js','./src/ingredient-catalog-data.js','./src/ingredient-submissions.js','./src/alchemy-cuisine-ui.js',
-'./assets/css/brand-reveal.css','./assets/css/sticker-studio.css','./assets/brand/mangrok-wordmark.svg','./assets/brand/mangrok-seal.svg','./src/brand-reveal.js','./src/sticker-library.js','./src/sticker-studio.js','./src/print-with-stickers.js',
-'./assets/reference-recipes/atelier-hero.svg','./assets/reference-recipes/cacio-e-pepe.svg','./assets/reference-recipes/miso-soup.svg','./assets/reference-recipes/bibimbap.svg','./assets/reference-recipes/chana-masala.svg','./assets/reference-recipes/hummus.svg','./assets/reference-recipes/guacamole.svg','./assets/reference-recipes/ratatouille.svg','./assets/reference-recipes/tom-yum-goong.svg','./assets/reference-recipes/misir-wot.svg','./assets/reference-recipes/jollof-rice.svg','./assets/reference-recipes/harira.svg','./assets/reference-recipes/peruvian-ceviche.svg','./assets/reference-recipes/shakshuka.svg']
-marker='const APP_SHELL=['
-if marker not in shell: raise SystemExit('Service-worker marker is missing.')
-missing=[asset for asset in assets if json.dumps(asset) not in shell]
-if missing: shell=shell.replace(marker,marker+','.join(json.dumps(asset) for asset in missing)+',',1)
-write('sw.js',shell)
+shell = read("sw.js")
+shell = re.sub(r'const CACHE="[^"]+"', 'const CACHE="mangrok-v11-logo-sticker-studio"', shell, count=1)
+assets = [
+    "./assets/css/recipe-atelier.css", "./src/atelier-reference-recipes.js", "./src/atelier-reference-table.js",
+    "./src/agent-cloud.js", "./src/agent-skills.js", "./src/agent-system.js", "./src/agent-tools.js",
+    "./src/agent-router.js", "./src/agent-memory.js", "./src/agent-runtime.js", "./src/agent-ai.js",
+    "./src/agent-memory-ui.js", "./src/global-ingredient-ui.js", "./src/ingredient-catalog.js",
+    "./src/ingredient-catalog-data.js", "./src/ingredient-submissions.js", "./src/alchemy-cuisine-ui.js",
+    "./assets/css/brand-reveal.css", "./assets/css/sticker-studio.css",
+    "./assets/brand/mangrok-wordmark.svg", "./assets/brand/mangrok-seal.svg",
+    "./src/brand-reveal.js", "./src/sticker-library.js", "./src/sticker-studio.js", "./src/print-with-stickers.js",
+    "./assets/reference-recipes/atelier-hero.svg", "./assets/reference-recipes/cacio-e-pepe.svg",
+    "./assets/reference-recipes/miso-soup.svg", "./assets/reference-recipes/bibimbap.svg",
+    "./assets/reference-recipes/chana-masala.svg", "./assets/reference-recipes/hummus.svg",
+    "./assets/reference-recipes/guacamole.svg", "./assets/reference-recipes/ratatouille.svg",
+    "./assets/reference-recipes/tom-yum-goong.svg", "./assets/reference-recipes/misir-wot.svg",
+    "./assets/reference-recipes/jollof-rice.svg", "./assets/reference-recipes/harira.svg",
+    "./assets/reference-recipes/peruvian-ceviche.svg", "./assets/reference-recipes/shakshuka.svg",
+]
+marker = "const APP_SHELL=["
+if marker not in shell:
+    raise SystemExit("Service-worker marker is missing.")
+missing = [asset for asset in assets if json.dumps(asset) not in shell]
+if missing:
+    shell = shell.replace(marker, marker + ",".join(json.dumps(asset) for asset in missing) + ",", 1)
+write("sw.js", shell)
 
-status={'release':'Mangrok brand reveal and sticker studio','applicationVersion':'3.6.0-alpha.7','pwaCache':'mangrok-v11-logo-sticker-studio','ingredientCatalogVersion':'2026.08.13-global-granular-v2','referenceRecipes':13,'alchemyRestored':True,'localLLMAdaptersPreserved':True,'logoReveal':True,'stickerAssets':32,'editableLabelStickers':True}
-write('release-status.json',json.dumps(status,indent=2)+'\n')
+mobile_test = read("tests/mobile-experience.test.mjs")
+mobile_test = mobile_test.replace("mangrok-v7-mobile-app-shell", "mangrok-v11-logo-sticker-studio")
+mobile_test = mobile_test.replace(r"3\.3\.0-alpha\.4", r"3\.6\.0-alpha\.7")
+write("tests/mobile-experience.test.mjs", mobile_test)
+
+sticker_test = read("tests/sticker-studio.test.mjs")
+if "form-associated sticker state" not in sticker_test:
+    sticker_test += '''\n\ntest("sticker studio supplies form-associated printable layer state", async () => {\n  const source = await readFile(new URL("../src/sticker-studio.js", import.meta.url), "utf8");\n  assert.match(source, /name="decorations"/);\n  assert.match(source, /form="book-form"/);\n  assert.doesNotMatch(source, /new MutationObserver\(\(\)=>renderIntoBookPreview/);\n});\n'''
+write("tests/sticker-studio.test.mjs", sticker_test)
+
+status = {
+    "release": "Mangrok brand reveal and sticker studio",
+    "applicationVersion": "3.6.0-alpha.7",
+    "pwaCache": "mangrok-v11-logo-sticker-studio",
+    "ingredientCatalogVersion": "2026.08.13-global-granular-v2",
+    "ingredientCatalogEntries": 4301,
+    "referenceRecipes": 13,
+    "alchemyRestored": True,
+    "localLLMAdaptersPreserved": True,
+    "deterministicFallbackPreserved": True,
+    "logoReveal": True,
+    "stickerAssets": 32,
+    "editableLabelStickers": True,
+    "printStickerLayers": True,
+}
+write("release-status.json", json.dumps(status, indent=2) + "\n")
 PY
 
-rm -f .github/workflows/pr-logo-sticker-release.yml .github/scripts/release-logo-sticker-studio.sh
+# Remove older one-time recovery machinery, but retain this repeatable release
+# gate until the pull request is merged and the production deployment is verified.
 rm -f .github/workflows/pr-atelier-alchemy-recovery.yml .github/workflows/pr-atelier-alchemy-recovery-v3.yml .github/scripts/materialize-atelier-alchemy.sh
 rm -f .github/workflows/recover-and-deploy-recipe-atelier.yml .github/workflows/kick-recipe-atelier-recovery.yml
 rm -f .github/workflows/export-global-ingredient-source.yml .github/workflows/export-usda-ingredient-reference.yml .github/workflows/export-usda-reference-v2.yml .github/workflows/fix-global-agent-release.yml .github/workflows/materialize-global-ingredient-agent.yml .github/workflows/verify-global-agent-release.yml .github/workflows/export-granular-v2-base.yml .github/workflows/materialize-granular-v2.yml .github/workflows/materialize-recipe-atelier.yml .github/workflows/promote-recipe-atelier.yml .github/workflows/repair-recipe-atelier-release.yml
 rm -f docs/RECOVERY-REQUEST.md docs/STOPGAP.md docs/LAST-MARKER.md docs/PR.md docs/PR-READY.md docs/READY.md docs/FINAL-PREP.md docs/PULL-REQUEST-NOTE.md docs/RELEASE-MARKER.md docs/RELEASE-NAME.md docs/RELEASE-INTENT.md docs/PR-GATE.md docs/TRANSFER-INSTRUCTIONS.md docs/TRANSFER-PROBE-2.md
 
-required=(src/alchemy-ui.js src/culinary-engine.js src/local-ai.js src/ingredient-catalog.js src/ingredient-catalog-data.js src/agent-router.js src/agent-runtime.js src/atelier-reference-recipes.js src/atelier-reference-table.js src/brand-reveal.js src/sticker-library.js src/sticker-studio.js src/print-with-stickers.js assets/mangrok-mark.svg)
+required=(
+  src/alchemy-ui.js src/culinary-engine.js src/local-ai.js
+  src/ingredient-catalog.js src/ingredient-catalog-data.js src/ingredient-submissions.js
+  src/agent-router.js src/agent-runtime.js src/atelier-reference-recipes.js src/atelier-reference-table.js
+  src/brand-reveal.js src/sticker-library.js src/sticker-studio.js src/print-with-stickers.js
+  assets/mangrok-mark.svg assets/brand/mangrok-wordmark.svg assets/brand/mangrok-seal.svg
+)
 for file in "${required[@]}"; do test -s "$file"; done
 grep -q 'Alchemy Lab' src/alchemy-ui.js
 grep -q 'import("./src/alchemy-ui.js")' runtime-config.js
 grep -q 'mangrok-v11-logo-sticker-studio' sw.js
+grep -q 'type="module" src="./src/brand-reveal.js"' index.html
 node --input-type=module - <<'NODE'
 import { REFERENCE_RECIPES } from './src/atelier-reference-recipes.js';
 import { ingredientCatalogStats } from './src/ingredient-catalog.js';
