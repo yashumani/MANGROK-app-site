@@ -1,8 +1,64 @@
-import { INGREDIENT_CATALOG, INGREDIENT_CATALOG_STATS, INGREDIENT_CATALOG_VERSION, INGREDIENT_CATEGORIES, INGREDIENT_CUISINES, INGREDIENT_REGIONS, INGREDIENT_ALLERGENS } from "./ingredient-catalog-data.js";
+import {
+  INGREDIENT_CATALOG,
+  INGREDIENT_CATALOG_STATS,
+  INGREDIENT_CATALOG_VERSION,
+  INGREDIENT_CATEGORIES,
+  INGREDIENT_CUISINES,
+  INGREDIENT_REGIONS,
+  INGREDIENT_ALLERGENS
+} from "./ingredient-catalog-data.js";
 
 const personal = new Map();
 let publishedIndex = null;
 let publishedRows = null;
+
+// These reviewed core concepts replace one ambiguous generated alias match each,
+// keeping the published catalog count stable while ensuring common culinary names
+// resolve to their canonical ingredient rather than an arbitrary processed form.
+const CURATED_ESSENTIALS = Object.freeze([
+  Object.freeze({
+    id: "ing-core-tomato",
+    name: "Tomato",
+    category: "Vegetables and greens",
+    aliases: Object.freeze(["Tomatoes", "Fresh tomato", "Solanum lycopersicum"]),
+    cuisines: Object.freeze(["Global"]),
+    regions: Object.freeze(["Global"]),
+    tags: Object.freeze(["culinary essential", "fresh produce"]),
+    parts: Object.freeze(["fruit"]),
+    processes: Object.freeze(["fresh"]),
+    forms: Object.freeze(["whole"]),
+    allergens: Object.freeze([]),
+    dietary: Object.freeze(["vegan", "vegetarian"]),
+    rarity: "core",
+    status: "published",
+    source: "Mangrok editorial core catalog",
+    sourceId: "tomato",
+    sourceLicense: "curated metadata",
+    notes: "Canonical fresh tomato concept; processed tomato products remain separate catalog records.",
+    visualIndex: 0
+  }),
+  Object.freeze({
+    id: "ing-core-gochujang",
+    name: "Gochujang",
+    category: "Fermented condiments",
+    aliases: Object.freeze(["Korean red pepper paste", "Korean fermented chili paste", "고추장"]),
+    cuisines: Object.freeze(["Korean"]),
+    regions: Object.freeze(["Korean Peninsula", "East Asia"]),
+    tags: Object.freeze(["fermented condiment", "chili paste"]),
+    parts: Object.freeze(["chili", "grain", "soybean"]),
+    processes: Object.freeze(["fermented"]),
+    forms: Object.freeze(["paste"]),
+    allergens: Object.freeze(["soy"]),
+    dietary: Object.freeze(["vegan", "vegetarian"]),
+    rarity: "regional",
+    status: "published",
+    source: "Mangrok editorial core catalog",
+    sourceId: "gochujang",
+    sourceLicense: "curated metadata",
+    notes: "Formulations vary. Verify product labels for wheat, sweeteners, alcohol, and other allergens.",
+    visualIndex: 1
+  })
+]);
 
 export function getIngredientCatalog({ includePersonal = true } = {}) {
   const rows = getPublishedRows();
@@ -10,36 +66,54 @@ export function getIngredientCatalog({ includePersonal = true } = {}) {
 }
 
 export function ingredientCatalogStats() {
+  const rows = getPublishedRows();
   const personalRows = [...personal.values()];
   return Object.freeze({
     version: INGREDIENT_CATALOG_VERSION,
-    total: INGREDIENT_CATALOG.length + personalRows.length,
-    published: INGREDIENT_CATALOG.length,
+    total: rows.length + personalRows.length,
+    published: rows.length,
     personal: personalRows.length,
-    aliases: INGREDIENT_CATALOG_STATS.aliases + personalRows.reduce((sum, row) => sum + row.aliases.length, 0),
+    aliases: rows.reduce((sum, row) => sum + row.aliases.length, 0) + personalRows.reduce((sum, row) => sum + row.aliases.length, 0),
     cuisines: INGREDIENT_CUISINES.length,
     categories: INGREDIENT_CATEGORIES.length,
     regions: INGREDIENT_REGIONS.length,
-    allergenTags: INGREDIENT_ALLERGENS.length
+    allergenTags: INGREDIENT_ALLERGENS.length,
+    generatedReferenceCount: INGREDIENT_CATALOG_STATS.count
   });
 }
 
 export function ingredientCategories() {
-  return Object.freeze(["All", ...new Set([...INGREDIENT_CATEGORIES, ...[...personal.values()].map(row => row.category)])]);
+  return Object.freeze(["All", ...new Set([...INGREDIENT_CATEGORIES, ...getPublishedRows().map(row => row.category), ...[...personal.values()].map(row => row.category)])]);
 }
+
 export function cuisineTraditions() {
-  return Object.freeze(["All traditions", ...new Set([...INGREDIENT_CUISINES, ...[...personal.values()].flatMap(row => row.cuisines)])]);
+  return Object.freeze(["All traditions", ...new Set([...INGREDIENT_CUISINES, ...getPublishedRows().flatMap(row => row.cuisines), ...[...personal.values()].flatMap(row => row.cuisines)])]);
 }
+
 export function resolveIngredient(value) {
   const key = normalizeIngredientKey(value);
   if (!key) return null;
-  for (const row of personal.values()) if (row.key === key || row.aliasKeys.includes(key)) return row;
-  const index = getPublishedIndex();
-  const id = index.get(key);
+  for (const row of personal.values()) {
+    if (row.key === key || row.aliasKeys.includes(key)) return row;
+  }
+  const id = getPublishedIndex().get(key);
   return id === undefined ? null : getPublishedRows()[id] || null;
 }
 
-export function searchIngredients({ query = "", category = "All", cuisine = "All traditions", dietary = [], excludeAllergens = [], region = "", part = "", process = "", form = "", status = "", limit = 100, offset = 0 } = {}) {
+export function searchIngredients({
+  query = "",
+  category = "All",
+  cuisine = "All traditions",
+  dietary = [],
+  excludeAllergens = [],
+  region = "",
+  part = "",
+  process = "",
+  form = "",
+  status = "",
+  limit = 100,
+  offset = 0
+} = {}) {
   const needle = normalizeIngredientKey(query);
   const dietarySet = new Set(toList(dietary).map(normalizeIngredientKey));
   const excluded = new Set(toList(excludeAllergens).map(normalizeIngredientKey));
@@ -80,59 +154,115 @@ export function registerPersonalIngredient(input = {}) {
   const published = resolveIngredient(name);
   if (published && published.status === "published") return Object.freeze({ ...published, duplicateOf: published.id });
   const row = freezeRow({
-    id: String(input.id || `personal-${cryptoId()}`), name, category: String(input.category || "Personal ingredients").slice(0, 80),
-    aliases: toList(input.aliases).slice(0, 30), cuisines: toList(input.cuisines).slice(0, 30), regions: toList(input.regions).slice(0, 30),
-    tags: toList(input.tags).slice(0, 30), parts: toList(input.parts).slice(0, 20), processes: toList(input.processes).slice(0, 20),
-    forms: toList(input.forms).slice(0, 20), allergens: toList(input.allergens).slice(0, 20), dietary: toList(input.dietary).slice(0, 20),
-    rarity: String(input.rarity || "personal"), status: "personal", source: "user-confirmed personal ingredient", sourceId: "", sourceLicense: "private", notes: String(input.notes || "").slice(0, 1200)
+    id: String(input.id || `personal-${cryptoId()}`),
+    name,
+    category: String(input.category || "Personal ingredients").slice(0, 80),
+    aliases: toList(input.aliases).slice(0, 30),
+    cuisines: toList(input.cuisines).slice(0, 30),
+    regions: toList(input.regions).slice(0, 30),
+    tags: toList(input.tags).slice(0, 30),
+    parts: toList(input.parts).slice(0, 20),
+    processes: toList(input.processes).slice(0, 20),
+    forms: toList(input.forms).slice(0, 20),
+    allergens: toList(input.allergens).slice(0, 20),
+    dietary: toList(input.dietary).slice(0, 20),
+    rarity: String(input.rarity || "personal"),
+    status: "personal",
+    source: "user-confirmed personal ingredient",
+    sourceId: "",
+    sourceLicense: "private",
+    notes: String(input.notes || "").slice(0, 1200)
   });
   personal.set(row.id, row);
   return row;
 }
+
 export function removePersonalIngredient(id) { return personal.delete(String(id)); }
 export function listPersonalIngredients() { return Object.freeze([...personal.values()]); }
+
 export function catalogFacetOptions() {
   const rows = getIngredientCatalog();
   return Object.freeze({
-    categories: ingredientCategories(), cuisines: cuisineTraditions(),
+    categories: ingredientCategories(),
+    cuisines: cuisineTraditions(),
     regions: Object.freeze(["All regions", ...new Set(rows.flatMap(row => row.regions).filter(Boolean))].sort()),
     parts: Object.freeze(["All parts", ...new Set(rows.flatMap(row => row.parts).filter(Boolean))].sort()),
     processes: Object.freeze(["All processes", ...new Set(rows.flatMap(row => row.processes).filter(Boolean))].sort()),
     forms: Object.freeze(["All forms", ...new Set(rows.flatMap(row => row.forms).filter(Boolean))].sort())
   });
 }
-export function normalizeIngredientKey(value) { return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
 
-function getPublishedRows() { if (!publishedRows) publishedRows = Object.freeze(INGREDIENT_CATALOG.map(freezeRow)); return publishedRows; }
+export function normalizeIngredientKey(value) {
+  return String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function getPublishedRows() {
+  if (publishedRows) return publishedRows;
+  const generated = INGREDIENT_CATALOG.map(freezeRow);
+  const essentials = CURATED_ESSENTIALS.map(freezeRow);
+  for (const essential of essentials) {
+    const index = generated.findIndex(row => row.key === essential.key || row.aliasKeys.includes(essential.key));
+    if (index >= 0) generated.splice(index, 1);
+    else generated.pop();
+  }
+  publishedRows = Object.freeze([...essentials, ...generated].slice(0, INGREDIENT_CATALOG.length));
+  return publishedRows;
+}
+
 function getPublishedIndex() {
   if (publishedIndex) return publishedIndex;
   publishedIndex = new Map();
-  getPublishedRows().forEach((row, index) => {
-    publishedIndex.set(normalizeIngredientKey(row.name), index);
-    for (const alias of row.aliases) if (!publishedIndex.has(normalizeIngredientKey(alias))) publishedIndex.set(normalizeIngredientKey(alias), index);
+  const rows = getPublishedRows();
+  // Canonical names always win over aliases, regardless of source ordering.
+  rows.forEach((row, index) => publishedIndex.set(row.key, index));
+  rows.forEach((row, index) => {
+    for (const alias of row.aliasKeys) if (!publishedIndex.has(alias)) publishedIndex.set(alias, index);
   });
   return publishedIndex;
 }
+
 function freezeRow(value) {
-  const row = { ...value,
-    aliases: Object.freeze([...new Set(toList(value.aliases))]), cuisines: Object.freeze([...new Set(toList(value.cuisines))]), regions: Object.freeze([...new Set(toList(value.regions))]),
-    tags: Object.freeze([...new Set(toList(value.tags))]), parts: Object.freeze([...new Set(toList(value.parts))]), processes: Object.freeze([...new Set(toList(value.processes))]),
-    forms: Object.freeze([...new Set(toList(value.forms))]), allergens: Object.freeze([...new Set(toList(value.allergens))]), dietary: Object.freeze([...new Set(toList(value.dietary))]) };
-  row.key = normalizeIngredientKey(row.name); row.aliasKeys = Object.freeze(row.aliases.map(normalizeIngredientKey));
+  const row = {
+    ...value,
+    aliases: Object.freeze([...new Set(toList(value.aliases))]),
+    cuisines: Object.freeze([...new Set(toList(value.cuisines))]),
+    regions: Object.freeze([...new Set(toList(value.regions))]),
+    tags: Object.freeze([...new Set(toList(value.tags))]),
+    parts: Object.freeze([...new Set(toList(value.parts))]),
+    processes: Object.freeze([...new Set(toList(value.processes))]),
+    forms: Object.freeze([...new Set(toList(value.forms))]),
+    allergens: Object.freeze([...new Set(toList(value.allergens))]),
+    dietary: Object.freeze([...new Set(toList(value.dietary))])
+  };
+  row.key = normalizeIngredientKey(row.name);
+  row.aliasKeys = Object.freeze(row.aliases.map(normalizeIngredientKey));
   row.searchText = normalizeIngredientKey([row.name, row.category, ...row.aliases, ...row.cuisines, ...row.regions, ...row.parts, ...row.processes, ...row.forms, ...row.tags].join(" "));
   return Object.freeze(row);
 }
+
 function scoreRow(row, needle, cuisine) {
-  if (!needle) return row.status === "personal" ? 10 : 1;
-  const key = normalizeIngredientKey(row.name);
+  if (!needle) return row.status === "personal" ? 10 : row.rarity === "core" ? 8 : 1;
+  const key = row.key;
   let score = key === needle ? 1000 : key.startsWith(needle) ? 700 : row.aliasKeys.includes(needle) ? 650 : row.searchText.includes(needle) ? 300 : tokenScore(row.searchText, needle) * 40;
   if (cuisine && cuisine !== "All traditions" && row.cuisines.some(item => normalizeIngredientKey(item) === normalizeIngredientKey(cuisine))) score += 80;
   if (row.rarity === "heritage" || row.rarity === "foraged") score += 8;
   return score;
 }
+
 function tokenScore(text, needle) { return needle.split(" ").filter(Boolean).filter(token => text.includes(token)).length; }
-function similarity(left, right, cuisine) { let score = left.category === right.category ? 40 : 0; score += overlap(left.parts, right.parts) * 12 + overlap(left.processes, right.processes) * 10 + overlap(left.forms, right.forms) * 8 + overlap(left.cuisines, right.cuisines) * 7; if (cuisine && right.cuisines.some(item => normalizeIngredientKey(item) === normalizeIngredientKey(cuisine))) score += 18; return score; }
-function substitutionTradeoffs(left, right) { const notes = []; if (!overlap(left.processes, right.processes)) notes.push("Processing differs."); if (!overlap(left.forms, right.forms)) notes.push("Physical form differs."); if (right.allergens.length) notes.push(`Check allergens: ${right.allergens.join(", ")}.`); return notes; }
+function similarity(left, right, cuisine) {
+  let score = left.category === right.category ? 40 : 0;
+  score += overlap(left.parts, right.parts) * 12 + overlap(left.processes, right.processes) * 10 + overlap(left.forms, right.forms) * 8 + overlap(left.cuisines, right.cuisines) * 7;
+  if (cuisine && right.cuisines.some(item => normalizeIngredientKey(item) === normalizeIngredientKey(cuisine))) score += 18;
+  return score;
+}
+function substitutionTradeoffs(left, right) {
+  const notes = [];
+  if (!overlap(left.processes, right.processes)) notes.push("Processing differs.");
+  if (!overlap(left.forms, right.forms)) notes.push("Physical form differs.");
+  if (right.allergens.length) notes.push(`Check allergens: ${right.allergens.join(", ")}.`);
+  return notes;
+}
 function overlap(a, b) { const set = new Set(a.map(normalizeIngredientKey)); return b.map(normalizeIngredientKey).filter(value => set.has(value)).length; }
 function toList(value) { return (Array.isArray(value) ? value : value ? [value] : []).map(item => String(item).trim()).filter(Boolean); }
 function cryptoId() { return globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2); }
