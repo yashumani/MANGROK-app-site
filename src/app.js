@@ -2,7 +2,7 @@ import { LocalVaultStore } from "./store.js";
 import { CloudVault } from "./cloud.js";
 import { blankRecipe, normalizeRecipe, validateRecipe, recipeMatches, sortRecipes, PRIVACY, uid, isoNow } from "./model.js";
 import { encryptSecret, decryptSecret, encryptShareEnvelope, decryptShareEnvelope } from "./crypto.js";
-import { buildBookHtml, recipeShareText, escapeHtml } from "./print.js";
+import { buildBookHtml, recipeShareText, escapeHtml } from "./print-with-stickers.js";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -146,7 +146,7 @@ function recipeCard(recipe) {
     <div class="card-accent"></div><div class="card-body"><div class="card-top"><span class="privacy-label">${escapeHtml(PRIVACY[recipe.privacy])}</span>
     <button class="favorite-button ${recipe.favorite ? "active" : ""}" data-action="favorite" aria-label="${recipe.favorite ? "Remove from" : "Add to"} favorites">${recipe.favorite ? "Saved" : "Favorite"}</button></div>
     <h3>${escapeHtml(recipe.title)}</h3><p class="summary">${escapeHtml(recipe.summary || recipe.origin?.story || "A recipe preserved in your private vault.")}</p>
-    <div class="card-tags">${recipe.tags.slice(0,4).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}${recipe.secret ? `<span class="sealed-badge">Sealed note</span>` : ""}</div>
+    <div class="card-tags">${recipe.tags.slice(0,48).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}${recipe.secret ? `<span class="sealed-badge">Sealed note</span>` : ""}</div>
     <div class="card-meta"><span>${recipe.ingredients.length} ingredients</span>${minutes ? `<span>${minutes} min</span>` : ""}<span>Revision ${recipe.revision}</span></div>
     <button class="card-open" data-action="open" aria-label="Open ${escapeHtml(recipe.title)}"></button></div></article>`;
 }

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 260" role="img" aria-labelledby="title desc">
+  <title id="title">Mangrok wordmark</title>
+  <desc id="desc">Mangrok wordmark with an open recipe-book M, golden spoon, botanical steam, and the phrase Recipes smarter together.</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe08a"/><stop offset="1" stop-color="#b87519"/></linearGradient></defs>
+  <g transform="translate(12 12) scale(.45)">
+    <path d="M94 186c68-20 122-8 162 28v190c-40-34-94-47-162-29V186Z" fill="#fff9ec" stroke="#b4772d" stroke-width="9"/>
+    <path d="M418 186c-68-20-122-8-162 28v190c40-34 94-47 162-29V186Z" fill="#fff9ec" stroke="#b4772d" stroke-width="9"/>
+    <path d="M135 244l45 102 43-94 33 91 33-91 43 94 45-102" fill="none" stroke="#531334" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M256 214v190" stroke="#936020" stroke-width="7"/>
+    <g transform="rotate(29 270 285)"><rect x="257" y="150" width="22" height="242" rx="11" fill="url(#g)"/><ellipse cx="268" cy="135" rx="30" ry="42" fill="url(#g)"/></g>
+    <path d="M227 164c-34-35 8-53-8-82 34 18 34 42 16 63 31-18 55-4 63-39 16 39-9 65-48 64" fill="none" stroke="#d49a28" stroke-width="11" stroke-linecap="round"/>
+  </g>
+  <text x="270" y="151" fill="#3b102c" font-size="128" font-family="Georgia, 'Times New Roman', serif" font-weight="700" letter-spacing="-4">Mangrok</text>
+  <path d="M276 180h654" stroke="#d49a28" stroke-width="3"/>
+  <text x="278" y="221" fill="#6c3a55" font-size="23" font-family="Arial, sans-serif" letter-spacing="8">RECIPES · SMARTER · TOGETHER</text>
+</svg>

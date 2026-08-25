@@ -1,0 +1,12 @@
+{
+  "version": "2026.08.13-global-granular-v2",
+  "count": 4301,
+  "categories": 25,
+  "cuisines": 92,
+  "regions": 17,
+  "aliases": 10367,
+  "sources": [
+    "Mangrok granular culinary research",
+    "USDA FoodData Central"
+  ]
+}
