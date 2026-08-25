@@ -1,39 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">Mangrok archive seal</title>
-  <desc id="desc">An archival recipe book held inside a brass seal with a red wax mark.</desc>
+  <title id="title">Mangrok culinary book mark</title>
+  <desc id="desc">An open recipe book forming the letter M, crossed by a golden spoon with a rising botanical steam flourish.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#21483c"/>
-      <stop offset="1" stop-color="#0d251f"/>
-    </linearGradient>
-    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff7e6"/>
-      <stop offset="1" stop-color="#e7d2aa"/>
-    </linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#07110e" flood-opacity=".32"/>
-    </filter>
+    <linearGradient id="plum" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5b173f"/><stop offset="1" stop-color="#2a1026"/></linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff9ec"/><stop offset="1" stop-color="#ead8b6"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe08a"/><stop offset=".5" stop-color="#d49a28"/><stop offset="1" stop-color="#8f5a12"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#180713" flood-opacity=".35"/></filter>
   </defs>
-
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="190" fill="none" stroke="#d2b37c" stroke-width="8"/>
-  <circle cx="256" cy="256" r="166" fill="none" stroke="#d2b37c" stroke-opacity=".38" stroke-width="2"/>
-  <path d="M256 74v28M256 410v28M74 256h28M410 256h28" stroke="#d2b37c" stroke-width="5" stroke-linecap="round"/>
-  <path d="M126 126l20 20M366 366l20 20M386 126l-20 20M146 366l-20 20" stroke="#d2b37c" stroke-opacity=".7" stroke-width="4" stroke-linecap="round"/>
-
+  <rect width="512" height="512" rx="120" fill="url(#plum)"/>
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#d9ad59" stroke-width="8"/>
+  <circle cx="256" cy="256" r="176" fill="none" stroke="#f5dfac" stroke-opacity=".28" stroke-width="2"/>
   <g filter="url(#shadow)">
-    <path d="M129 162c48-10 91-2 127 24v191c-36-23-78-31-127-22V162Z" fill="url(#paper)" stroke="#b68b49" stroke-width="8" stroke-linejoin="round"/>
-    <path d="M383 162c-48-10-91-2-127 24v191c36-23 78-31 127-22V162Z" fill="url(#paper)" stroke="#b68b49" stroke-width="8" stroke-linejoin="round"/>
-    <path d="M256 186v190" stroke="#8a6737" stroke-width="6" stroke-linecap="round"/>
-    <path d="M160 214c28-3 51 1 70 11M160 249c28-3 51 1 70 11M160 284c28-3 51 1 70 11" fill="none" stroke="#715c42" stroke-opacity=".58" stroke-width="7" stroke-linecap="round"/>
-    <path d="M282 225c19-10 42-14 70-11M282 260c19-10 42-14 70-11M282 295c19-10 42-14 70-11" fill="none" stroke="#715c42" stroke-opacity=".58" stroke-width="7" stroke-linecap="round"/>
+    <path d="M94 186c68-20 122-8 162 28v190c-40-34-94-47-162-29V186Z" fill="url(#paper)" stroke="#b4772d" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M418 186c-68-20-122-8-162 28v190c40-34 94-47 162-29V186Z" fill="url(#paper)" stroke="#b4772d" stroke-width="9" stroke-linejoin="round"/>
+    <path d="M256 214v190" stroke="#936020" stroke-width="7" stroke-linecap="round"/>
+    <path d="M135 244l45 102 43-94 33 91 33-91 43 94 45-102" fill="none" stroke="#531334" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-
-  <g transform="translate(256 344)">
-    <path d="M0-56c30 0 56 20 56 49 0 14-7 24-4 38-13-2-22 7-35 11C4 47-4 47-17 42c-13-4-22-13-35-11 3-14-4-24-4-38 0-29 26-49 56-49Z" fill="#8e3528" stroke="#642219" stroke-width="7"/>
-    <circle cy="-6" r="31" fill="none" stroke="#f0d4b0" stroke-opacity=".48" stroke-width="4"/>
-    <path d="M-13 12V-27h10L8-5l11-22h10v39h-9V-12L10 8H5L-4-12v24h-9Z" fill="#f8ead2"/>
+  <g transform="rotate(29 270 285)">
+    <rect x="257" y="150" width="22" height="242" rx="11" fill="url(#gold)" stroke="#8c5918" stroke-width="4"/>
+    <ellipse cx="268" cy="135" rx="30" ry="42" fill="url(#gold)" stroke="#8c5918" stroke-width="5"/>
   </g>
-
-  <path d="M185 420h142" stroke="#d2b37c" stroke-width="5" stroke-linecap="round"/>
+  <path d="M227 164c-34-35 8-53-8-82 34 18 34 42 16 63 31-18 55-4 63-39 16 39-9 65-48 64" fill="none" stroke="#f1bd4d" stroke-width="11" stroke-linecap="round"/>
+  <path d="M205 124c-27-3-43-16-49-41 28 3 45 16 49 41Zm103-26c5-25 21-39 48-43-4 26-20 40-48 43Z" fill="#789148" stroke="#c6c972" stroke-width="3"/>
+  <path d="M164 410h184" stroke="#d9ad59" stroke-width="7" stroke-linecap="round"/>
 </svg>

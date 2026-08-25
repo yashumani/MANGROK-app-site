@@ -1,9 +1,9 @@
 {
   "name": "mangrok-recipe-vault",
-  "version": "3.5.0-alpha.6",
+  "version": "3.6.0-alpha.7",
   "private": true,
   "type": "module",
-  "description": "A local-first recipe atelier with source-aware starter recipes, restored Alchemy, deterministic culinary intelligence, local/private LLM adapters, and print-ready preservation.",
+  "description": "A local-first recipe atelier with restored culinary Alchemy, source-aware references, global ingredient knowledge, a vector brand reveal, and a layered cookbook sticker studio.",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "validate": "node scripts/validate.mjs",

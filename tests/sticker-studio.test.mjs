@@ -45,3 +45,11 @@ test("brand reveal and sticker studio are release-integrated", async () => {
   assert.match(runtime, /sticker-studio\.js/); assert.match(runtime, /3\.6\.0-alpha\.7/);
   assert.match(serviceWorker, /mangrok-v11-logo-sticker-studio/);
 });
+
+
+test("sticker studio supplies form-associated printable layer state", async () => {
+  const source = await readFile(new URL("../src/sticker-studio.js", import.meta.url), "utf8");
+  assert.match(source, /name="decorations"/);
+  assert.match(source, /form="book-form"/);
+  assert.doesNotMatch(source, /new MutationObserver\(\(\)=>renderIntoBookPreview/);
+});

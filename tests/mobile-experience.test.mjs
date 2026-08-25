@@ -80,9 +80,9 @@ test("Alchemy restores a bounded draft between app sessions", async () => {
 test("the app-shell release invalidates the prior PWA shell", async () => {
   const sw = await read("sw.js");
   const runtime = await read("runtime-config.js");
-  assert.match(sw, /mangrok-v7-mobile-app-shell/);
+  assert.match(sw, /mangrok-v11-logo-sticker-studio/);
   assert.match(sw, /src\/mobile-shell\.js/);
-  assert.match(runtime, /3\.3\.0-alpha\.4/);
+  assert.match(runtime, /3\.6\.0-alpha\.7/);
   assert.match(runtime, /src\/mobile-shell\.js/);
 });
 
