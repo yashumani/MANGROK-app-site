@@ -7,6 +7,7 @@ export class IngredientSubmissionQueue {
   constructor({ storage = globalThis.localStorage, cloud = createAgentCloudProvider() } = {}) {
     this.storage = storage;
     this.cloud = cloud;
+    this.memoryRows = [];
   }
 
   async submit(input = {}, { confirmed = false, syncCloud = true } = {}) {
@@ -48,11 +49,11 @@ export class IngredientSubmissionQueue {
 
   async list() {
     const local = this.read();
-    if (!this.cloud?.enabled) return local;
+    if (!this.cloud?.enabled) return Object.freeze(local);
     try {
       const cloudRows = await this.cloud.listIngredientSubmissions();
       return mergeRows(local, cloudRows || []);
-    } catch { return local; }
+    } catch { return Object.freeze(local); }
   }
 
   async withdraw(idValue) {
@@ -73,14 +74,23 @@ export class IngredientSubmissionQueue {
   persist(row) {
     const rows = this.read();
     const index = rows.findIndex(value => value.id === row.id);
-    if (index >= 0) rows[index] = row; else rows.unshift(row);
+    if (index >= 0) rows[index] = row;
+    else rows.unshift(row);
     this.write(rows.slice(0, 300));
   }
+
   read() {
-    try { const value = JSON.parse(this.storage?.getItem?.(STORAGE_KEY) || "[]"); return Array.isArray(value) ? value.map(freezeSubmission) : []; }
-    catch { return []; }
+    if (!this.storage?.getItem) return this.memoryRows.map(freezeSubmission);
+    try {
+      const value = JSON.parse(this.storage.getItem(STORAGE_KEY) || "[]");
+      return Array.isArray(value) ? value.map(freezeSubmission) : [];
+    } catch { return this.memoryRows.map(freezeSubmission); }
   }
-  write(rows) { try { this.storage?.setItem?.(STORAGE_KEY, JSON.stringify(rows)); } catch {} }
+
+  write(rows) {
+    this.memoryRows = rows.map(freezeSubmission);
+    try { this.storage?.setItem?.(STORAGE_KEY, JSON.stringify(rows)); } catch {}
+  }
 }
 
 function freezeSubmission(value) {
